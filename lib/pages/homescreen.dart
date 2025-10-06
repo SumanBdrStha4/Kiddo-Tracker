@@ -18,7 +18,6 @@ import 'package:kiddo_tracker/widget/mqtt_widget.dart';
 import 'package:kiddo_tracker/widget/stop_locations_dialog.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
-import 'package:kiddo_tracker/utils/location_utils.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 
@@ -77,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen>
     await _fetchChildrenFromDb();
     await _mqttCompleter.future;
     await _subscribeToTopics();
-    // await _fetchRouteStoapge();
+    await _fetchRouteStoapge();
   }
 
   Future<void> _subscribeToTopics() async {
@@ -444,6 +443,12 @@ class _HomeScreenState extends State<HomeScreen>
       Logger().i(responseLocation);
 
       //get stop_list from database
+      final sqliteStopList = await _sqfliteHelper.getStopListByOprIdAndRouteId(
+        oprId,
+        routeId,
+      );
+      Logger().i('sqliteStopList: $sqliteStopList');
+
       final stopList = await _sqfliteHelper.getStopListByOprIdAndRouteId(
         oprId,
         routeId,
@@ -550,7 +555,7 @@ class _HomeScreenState extends State<HomeScreen>
               context,
               listen: false,
             ).updateChildren();
-            await Provider.of<ChildrenProvider>(context, listen: false);
+            Provider.of<ChildrenProvider>(context, listen: false);
             // .removeChildOrRouteOprid("route", studentId);
 
             ScaffoldMessenger.of(context).showSnackBar(
@@ -617,6 +622,7 @@ class _HomeScreenState extends State<HomeScreen>
                     route['route_name'],
                     route['type'],
                     route['stop_list'],
+                    route['stop_details'],
                   );
                 }
               }

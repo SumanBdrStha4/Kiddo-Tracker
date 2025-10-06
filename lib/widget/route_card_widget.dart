@@ -302,8 +302,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                                 color: Colors.grey,
                               ),
                             ),
-                            if (widget.routes.first.schoolLocation != null &&
-                                widget.routes.first.schoolLocation.isNotEmpty)
+                            if (widget.routes.first.schoolLocation.isNotEmpty)
                               Text(
                                 'School: ${widget.routes.first.schoolLocation}',
                                 style: const TextStyle(
@@ -319,12 +318,10 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                   ),
                   const SizedBox(height: 12),
                   InkWell(
-                    onTap: onboardTime != null
-                        ? () => widget.onOnboardTap!(
+                    onTap: () => widget.onOnboardTap!(
                             widget.routeId,
                             widget.routes,
-                          )
-                        : null,
+                          ),
                     borderRadius: BorderRadius.circular(8),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(

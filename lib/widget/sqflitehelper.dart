@@ -81,6 +81,7 @@ class SqfliteHelper {
         type INTEGER,
         stop_list TEXT,
         vehicle_id TEXT
+        stop_details TEXT
       )
     ''');
 
@@ -387,7 +388,7 @@ class SqfliteHelper {
   }
 
   //insert route
-  void insertRoute(item, item2, item3, item4, item5, item6, item7) {
+  void insertRoute(item, item2, item3, item4, item5, item6, item7, item8) {
     //insert route into routes table
     db.then((client) {
       client.insert('routes', {
@@ -398,6 +399,7 @@ class SqfliteHelper {
         'route_name': item5,
         'type': item6,
         'stop_list': item7,
+        'stop_details': item8,
       });
     });
   }
@@ -420,5 +422,25 @@ class SqfliteHelper {
       where: 'oprid = ? AND route_id = ?',
       whereArgs: [oprId, routeId],
     );
+  }
+
+  // get stop list name and location from route base on oprid and route_id
+  Future<List<Map<String, dynamic>>> getStopDetailsByOprIdAndRouteId(
+    String oprId,
+    String routeId,
+  ) async {
+    final dbdata = getStopListByOprIdAndRouteId(oprId, routeId);
+    Logger().i(dbdata);
+    //from dbdata get stop_list and decode it
+    return dbdata.then((value) {
+      if (value.isNotEmpty) {
+        final stopListStr = value.first['stop_list'] as String;
+        final decoded = jsonDecode(stopListStr);
+        if (decoded is List) {
+          return List<Map<String, dynamic>>.from(decoded);
+        }
+      }
+      return [];
+    });
   }
 }

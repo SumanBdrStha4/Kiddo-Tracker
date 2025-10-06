@@ -226,7 +226,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
           vertical: 12,
         ),
       ),
-      value: _selectedRoute,
+      initialValue: _selectedRoute,
       items: callback
           .getRouteNames()
           .map(
@@ -248,7 +248,10 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
               Logger().i(selectedRoute.toJson());
               _selectedRouteId = selectedRoute.routeId;
               _selectedRouteType = selectedRoute.type;
-              _times = callback.getRouteTimings(_selectedRouteId!);
+              _times = callback.getRouteTimings(
+                _selectedRouteId,
+                _selectedRouteType,
+              );
               //use getStopList from callback to get stopages
               _stopages = callback.getStopList(_selectedRouteId!);
             } catch (e) {
@@ -295,7 +298,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
           vertical: 12,
         ),
       ),
-      value: _selectedTime,
+      initialValue: _selectedTime,
       items: _times
           .map((time) => DropdownMenuItem(value: time, child: Text(time)))
           .toList(),
@@ -309,6 +312,29 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
               .getVehicleIdbyTiming(value, _selectedRouteId!)
               .toString();
           // base on time selected get update time in stopages list
+          //call getTimesbyStopId from callback
+          List<String> times = callback.getRouteTimesbyOprId(
+            int.parse(_selectedorpId!),
+          );
+          // update the _stopages time value based on times list
+          //only in match case
+          for (int i = 0; i < _stopages.length; i++) {
+            String stopName = _stopages[i]['value'] ?? '';
+            for (String timeEntry in times) {
+              List<String> parts = timeEntry.split(', ');
+              if (parts.length >= 3) {
+                String entryStopName = parts[0];
+                String arrivalPart = parts[1];
+                String departurePart = parts[2];
+                String arrivalTime = arrivalPart.split(': ')[1];
+                String departureTime = departurePart.split(': ')[1];
+                if (entryStopName == stopName) {
+                  _stopages[i]['time'] = '($arrivalTime - $departureTime)';
+                  break;
+                }
+              }
+            }
+          }
         });
       },
       validator: (value) => value == null ? 'Select a time' : null,

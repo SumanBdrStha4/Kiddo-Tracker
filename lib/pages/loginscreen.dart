@@ -167,16 +167,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
-
-                          // child: const Text(
-                          //   'Next',
-                          //   style: TextStyle(
-                          //     color: Colors.white,
-                          //     fontSize: 18,
-                          //     fontFamily: 'Roboto',
-                          //     fontWeight: FontWeight.w600,
-                          //   ),
-                          // ),
                         ),
                       ),
                     ],

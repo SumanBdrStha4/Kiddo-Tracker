@@ -1,5 +1,4 @@
 import 'package:kiddo_tracker/model/routelist.dart';
-import 'package:logger/logger.dart';
 
 class RouteSearchCallback {
   List<RouteList> routeList;
@@ -89,8 +88,15 @@ class RouteSearchCallback {
   }
 
   // Return a list of timings for a given route
-  List<String> getRouteTimings(String routeId) {
-    return routeTimingsMap[routeId] ?? [];
+  List<String> getRouteTimings(String? routeId, int? type) {
+    // Filter timings based on routeId and type
+    List<String> timings = [];
+    for (RouteList route in routeList) {
+      if (route.routeId == routeId && route.type == type) {
+        timings.add(route.timing);
+      }
+    }
+    return timings;
   }
 
   //Return a list of stop_details for a given route
@@ -136,24 +142,30 @@ class RouteSearchCallback {
     return stops;
   }
 
-  // get time base on timing or oprid and add time to matched routeid in stops
-  List<String> getTimesbyStopId(String stopId, String routeId) {
-    //get stop arrival time and departure time if available by matching stop name
-    Logger().d("Stop details: $stops");
+  // get time based on oprid and return timing information for all stops in the route
+  List<String> getRouteTimesbyOprId(int oprid) {
+    List<String> times = [];
+    // Find the route with the matching oprid
     for (RouteList route in routeList) {
-      for (var stopDetail in route.stopDetails ?? []) {
-        if (stopDetail.stopName == stops[0]['value']) {
-          //check if stopDetails contains arrival and departure
-          if (stopDetail.arrival != null && stopDetail.departure != null) {
-            //then check the null values
-            if (stopDetail.arrival != null && stopDetail.departure != null) {
-              stops.last['time'] =
-                  '(${stopDetail.arrival} - ${stopDetail.departure})';
+      if (route.oprid == oprid) {
+        if (route.stopDetails != null && route.stopDetails!.isNotEmpty) {
+          // Get the stop list for this route to check against
+          getStopList(route.routeId);
+          List<String> stopNames = stops.map((e) => e['value']!).toList();
+          for (var stopDetail in route.stopDetails!) {
+            if (stopDetail.arrival.isNotEmpty &&
+                stopDetail.departure.isNotEmpty) {
+              // Check if stopDetail.stopName matches with getStopList stops['value']
+              if (stopNames.contains(stopDetail.stopName)) {
+                times.add(
+                  '${stopDetail.stopName}, Arrival: ${stopDetail.arrival}, Departure: ${stopDetail.departure}',
+                );
+              }
             }
           }
         }
       }
     }
-    return stops.map((e) => e['time'] ?? '').toList();
+    return times;
   }
 }

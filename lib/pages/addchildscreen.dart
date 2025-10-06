@@ -432,7 +432,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                             vertical: 12,
                           ),
                         ),
-                        value: gender,
+                        initialValue: gender,
                         items: ['Male', 'Female', 'Other']
                             .map(
                               (g) => DropdownMenuItem(

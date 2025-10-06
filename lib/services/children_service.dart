@@ -80,11 +80,13 @@ class ChildrenService {
                 if (decoded is List) {
                   parsedRouteInfo = decoded
                       .map<RouteInfo>(
-                        (e) => RouteInfo.fromJson(
-                          e is String
+                        (e) {
+                          var json = e is String
                               ? jsonDecode(e)
-                              : e as Map<String, dynamic>,
-                        ),
+                              : e as Map<String, dynamic>;
+                          json['school_location'] = student['school'];
+                          return RouteInfo.fromJson(json);
+                        },
                       )
                       .toList();
                 }
@@ -94,9 +96,13 @@ class ChildrenService {
             } else if (student['route_info'] is List) {
               parsedRouteInfo = (student['route_info'] as List)
                   .map<RouteInfo>(
-                    (e) => RouteInfo.fromJson(
-                      e is String ? jsonDecode(e) : e as Map<String, dynamic>,
-                    ),
+                    (e) {
+                      var json = e is String
+                          ? jsonDecode(e)
+                          : e as Map<String, dynamic>;
+                      json['school_location'] = student['school'];
+                      return RouteInfo.fromJson(json);
+                    },
                   )
                   .toList();
             }
