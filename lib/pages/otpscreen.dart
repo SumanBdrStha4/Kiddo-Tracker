@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/services/children_service.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:logger/logger.dart';
@@ -50,28 +49,28 @@ class _OTPScreenState extends State<OTPScreen> {
       SharedPreferenceHelper.setUserNumber(widget.mobile ?? '');
 
       String mobileNumber = widget.mobile ?? '';
-      final response = await ApiService.verifyOTP(mobileNumber, otp);
+      // final response = await ApiService.verifyOTP(mobileNumber, otp);
 
-      if (response.statusCode == 200) {
-        logger.i(response.toString());
-        if (response.data[0]['result'] == 'ok') {
+      // if (response.statusCode == 200) {
+      //   logger.i(response.toString());
+      //   if (response.data[0]['result'] == 'ok') {
           // call another method
           _fetchChildren();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('OTP verified successfully')),
           );
-        } else if (response.data[0]['result'] == 'Invaild OTP') {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Invaild OTP')));
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to verify OTP: ${response.statusMessage}'),
-          ),
-        );
-      }
+      //   } else if (response.data[0]['result'] == 'Invaild OTP') {
+      //     ScaffoldMessenger.of(
+      //       context,
+      //     ).showSnackBar(const SnackBar(content: Text('Invaild OTP')));
+      //   }
+      // } else {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(
+      //       content: Text('Failed to verify OTP: ${response.statusMessage}'),
+      //     ),
+      //   );
+      // }
     } catch (e, stacktrace) {
       logger.e(
         'Error during OTP verification',
