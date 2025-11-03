@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/api/apimanage.dart';
 import 'package:kiddo_tracker/pages/addchildscreen.dart';
+import 'package:kiddo_tracker/pages/request_leave_screen.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
@@ -240,6 +241,10 @@ class _SettingScreenState extends State<SettingScreen> {
                         icon: Icon(Icons.delete, color: Colors.redAccent),
                         onPressed: () => _confirmDeleteChild(idx),
                       ),
+                      IconButton(
+                        icon: Icon(Icons.event_note, color: Colors.green),
+                        onPressed: () => requestLeave(child),
+                      ),
                     ],
                   ),
                 ),
@@ -398,6 +403,15 @@ class _SettingScreenState extends State<SettingScreen> {
   
   void dataSync() {
     //run all the api and update the database.
-    
+
+  }
+
+  void requestLeave(Map<String, dynamic> child) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RequestLeaveScreen(child: child),
+      ),
+    );
   }
 }

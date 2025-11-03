@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:kiddo_tracker/services/children_service.dart';
-import 'package:kiddo_tracker/services/workmanager_callback.dart';
+import 'package:kiddo_tracker/api/api_service.dart';
+import 'package:kiddo_tracker/pages/otpscreen.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:logger/logger.dart';
 
 import '../routes/routes.dart';
+import '../services/children_service.dart';
 
-class OTPScreen extends StatefulWidget {
-  String? mobile;
-  OTPScreen({super.key, this.mobile});
+class PINScreen extends StatefulWidget {
+  PINScreen({super.key});
 
   @override
-  State<OTPScreen> createState() => _OTPScreenState();
+  State<PINScreen> createState() => _PINScreenState();
 }
 
-class _OTPScreenState extends State<OTPScreen> {
+class _PINScreenState extends State<PINScreen> {
+  late String mobileNumber;
   final List<TextEditingController> _controllers = List.generate(
-    6,
+    4,
     (_) => TextEditingController(),
   );
   final Logger logger = Logger();
@@ -32,11 +33,11 @@ class _OTPScreenState extends State<OTPScreen> {
   }
 
   Future<void> _signIn() async {
-    final otp = _controllers.map((c) => c.text).join();
+    final pin = _controllers.map((c) => c.text).join();
 
-    if (otp.length != 6) {
+    if (pin.length != 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 6-digit OTP')),
+        const SnackBar(content: Text('Please enter a valid 4-digit PIN')),
       );
       return;
     }
@@ -47,34 +48,32 @@ class _OTPScreenState extends State<OTPScreen> {
 
     try {
       // Save mobile number in shared preferences
-      SharedPreferenceHelper.setUserNumber(widget.mobile ?? '');
-
-      String mobileNumber = widget.mobile ?? '';
-      // final response = await ApiService.verifyOTP(mobileNumber, otp);
-
-      // if (response.statusCode == 200) {
-      //   logger.i(response.toString());
-      //   if (response.data[0]['result'] == 'ok') {
-      // call another method
-      _fetchChildren();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP verified successfully')),
-      );
-      //   } else if (response.data[0]['result'] == 'Invaild OTP') {
-      //     ScaffoldMessenger.of(
-      //       context,
-      //     ).showSnackBar(const SnackBar(content: Text('Invaild OTP')));
-      //   }
-      // } else {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(
-      //       content: Text('Failed to verify OTP: ${response.statusMessage}'),
-      //     ),
-      //   );
-      // }
+      String? result = await SharedPreferenceHelper.getUserNumber();
+      if (result != null) {
+        mobileNumber = result;
+      } else {
+        mobileNumber = "1234567890";
+      }
+      final response = await ApiService.verifyPIN(mobileNumber, pin);
+      final data = response.data;
+      if (response.data[0]['result'] == 'ok') {
+        //clear all except mobile number and isLoggedIn
+        SharedPreferenceHelper.clearAllExceptNumberAndLogin();
+        SharedPreferenceHelper.setUserLoggedIn(true);
+        //use ChildrenService _processChildrenData
+        final result = await ChildrenService().processChildrenData(data);
+        if (result['success'] == true) {
+          Navigator.pushNamed(context, AppRoutes.main);
+        }
+      } else {
+        String data = response.data[1]['data'];
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(data)));
+      }
     } catch (e, stacktrace) {
       logger.e(
-        'Error during OTP verification',
+        'Error during PIN verification',
         error: e,
         stackTrace: stacktrace,
       );
@@ -108,7 +107,7 @@ class _OTPScreenState extends State<OTPScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Text(
-                  'Enter OTP',
+                  'Enter PIN',
                   style: TextStyle(
                     color: Color(0xFF755DC1),
                     fontSize: 24,
@@ -117,13 +116,13 @@ class _OTPScreenState extends State<OTPScreen> {
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'Please enter the OTP sent to your phone',
+                  'Please enter your 4-digit PIN',
                   style: TextStyle(color: Color(0xFF837E93), fontSize: 16),
                 ),
                 const SizedBox(height: 40),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(6, (index) {
+                  children: List.generate(4, (index) {
                     return Container(
                       width: 48,
                       margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -150,7 +149,7 @@ class _OTPScreenState extends State<OTPScreen> {
                           counterText: '',
                         ),
                         onChanged: (value) {
-                          if (value.isNotEmpty && index < 5) {
+                          if (value.isNotEmpty && index < 3) {
                             node.nextFocus();
                           } else if (value.isEmpty && index > 0) {
                             node.previousFocus();
@@ -180,13 +179,27 @@ class _OTPScreenState extends State<OTPScreen> {
                             ),
                           )
                         : const Text(
-                            'Sign In',
+                            'Verify PIN',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, AppRoutes.forgetPin);
+                  },
+                  child: const Text(
+                    'Forgot PIN?',
+                    style: TextStyle(
+                      color: Color(0xFF9F7BFF),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -197,78 +210,49 @@ class _OTPScreenState extends State<OTPScreen> {
     );
   }
 
-  Future<void> _fetchChildren() async {
-    try {
-      final result = await ChildrenService().fetchChildren();
-      if (result['success'] == true) {
-        // Get list of child route timings
-        List<String> childRouteTimings = [];
-        final children = result['result']['children'] as List<dynamic>;
-        for (var child in children) {
-          for (var route in child.routeInfo) {
-            if (route.stopArrivalTime.isNotEmpty) {
-              childRouteTimings.add(route.stopArrivalTime);
-            }
-          }
-        }
-        print('List of child route timings: $childRouteTimings');
+  // Future<void> _fetchChildren() async {
+  //   try {
+  //     final result = await ChildrenService().fetchChildren();
+  //     if (result['success'] == true) {
+  //       // Get list of child route timings
+  //       List<String> childRouteTimings = [];
+  //       final children = result['result']['children'] as List<dynamic>;
+  //       for (var child in children) {
+  //         for (var route in child.routeInfo) {
+  //           if (route.stopArrivalTime.isNotEmpty) {
+  //             childRouteTimings.add(route.stopArrivalTime);
+  //           }
+  //         }
+  //       }
+  //       logger.i('List of child route timings: $childRouteTimings');
 
-        // Find the smallest time and subtract 1 hour
-        if (childRouteTimings.isNotEmpty) {
-          DateTime? earliestTime;
-          for (var timeStr in childRouteTimings) {
-            try {
-              final time = DateTime.parse('2023-01-01 $timeStr');
-              if (earliestTime == null || time.isBefore(earliestTime)) {
-                earliestTime = time;
-              }
-            } catch (e) {
-              // Skip invalid time strings
-            }
-          }
-          if (earliestTime != null) {
-            final adjustedTime = earliestTime.subtract(
-              const Duration(hours: 1),
-            );
-            print(
-              'Smallest time minus 1 hour: Hours: ${adjustedTime.hour}, Minutes: ${adjustedTime.minute}',
-            );
-            // Store hours and minutes in shared preferences
-            SharedPreferenceHelper.setEarliestRouteHour(adjustedTime.hour);
-            SharedPreferenceHelper.setEarliestRouteMinute(adjustedTime.minute);
-            // Schedule daily data load
-            await scheduleDailyDataLoad();
-          }
-        }
-
-        if (mounted) {
-          SharedPreferenceHelper.setUserLoggedIn(true);
-          Navigator.pushNamed(context, AppRoutes.main);
-        }
-        setState(() {
-          _isLoading = false;
-        });
-      } else if (result['success'] == false) {
-        if (mounted) {
-          Navigator.pushNamed(context, AppRoutes.signup);
-        }
-        Logger().e('Error fetching children: ${result['data']}');
-        setState(() {
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-        Logger().e(
-          'Error fetching children: ${result['error'] ?? 'Unknown error'}',
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      Logger().e('Error fetching children: $e');
-    }
-  }
+  //       if (mounted) {
+  //         Navigator.pushNamed(context, AppRoutes.main);
+  //       }
+  //       setState(() {
+  //         _isLoading = false;
+  //       });
+  //     } else if (result['success'] == false) {
+  //       if (mounted) {
+  //         Navigator.pushNamed(context, AppRoutes.signup);
+  //       }
+  //       Logger().e('Error fetching children: ${result['data']}');
+  //       setState(() {
+  //         _isLoading = false;
+  //       });
+  //     } else {
+  //       setState(() {
+  //         _isLoading = false;
+  //       });
+  //       Logger().e(
+  //         'Error fetching children: ${result['error'] ?? 'Unknown error'}',
+  //       );
+  //     }
+  //   } catch (e) {
+  //     setState(() {
+  //       _isLoading = false;
+  //     });
+  //     Logger().e('Error fetching children: $e');
+  //   }
+  // }
 }

@@ -3,12 +3,16 @@ import 'package:kiddo_tracker/pages/addchildroute.dart';
 import 'package:kiddo_tracker/pages/loginscreen.dart';
 import 'package:kiddo_tracker/pages/mainscreen.dart';
 import 'package:kiddo_tracker/pages/otpscreen.dart';
+import 'package:kiddo_tracker/pages/pinscreen.dart';
 import 'package:kiddo_tracker/pages/signupscreen.dart';
+import 'package:kiddo_tracker/pages/forgetpinscreen.dart';
 import 'package:kiddo_tracker/pages/subscriptionscreen.dart';
 
 class AppRoutes {
   static const String login = '/';
   static const String otp = '/otp';
+  static const String pin = '/pin';
+  static const String forgetPin = '/forgetpin';
   static const String signup = '/signup';
   static const String main = '/main';
   static const String subscribe = '/subscribe';
@@ -23,13 +27,19 @@ class AppRoutes {
         return MaterialPageRoute(
           builder: (_) => OTPScreen(mobile: mobileNumber),
         );
+      case pin:
+        return MaterialPageRoute(builder: (_) => PINScreen());
+      case forgetPin:
+        return MaterialPageRoute(builder: (_) => ForgetPINScreen());
       case signup:
         return MaterialPageRoute(builder: (_) => const SignUpScreen());
       case main:
         return MaterialPageRoute(builder: (_) => const MainScreen());
       case subscribe:
         final childId = settings.arguments as String;
-        return MaterialPageRoute(builder: (_) => SubscriptionScreen(childid: childId,));
+        return MaterialPageRoute(
+          builder: (_) => SubscriptionScreen(childid: childId),
+        );
       case addRoute:
         final arguments = settings.arguments as Map;
         final childName = arguments['childName'];
@@ -51,6 +61,8 @@ class AppRoutes {
     return {
       login: (context) => const LoginScreen(),
       otp: (context) => OTPScreen(),
+      pin: (context) => PINScreen(),
+      forgetPin: (context) => ForgetPINScreen(),
       signup: (context) => const SignUpScreen(),
       main: (context) => const MainScreen(),
       subscribe: (context) => const SubscriptionScreen(),

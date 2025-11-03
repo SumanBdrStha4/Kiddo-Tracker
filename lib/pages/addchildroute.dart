@@ -29,7 +29,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
   List<dynamic>? _institutes = [];
   String? _selectedInstitute;
 
-  List<RouteList> _routes = [];
+  final List<RouteList> _routes = [];
   List<String> _times = [];
   List<Map<String, String?>> _stopages = [];
 
@@ -46,7 +46,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
   String? _stopageId;
   String? _vehicleId;
   //for round way store multi routes
-  List<String> _selectedRoundRoutes = [];
+  final List<String> _selectedRoundRoutes = [];
 
   // Onward variables for round trip
   String? _onwardRoute;
@@ -750,7 +750,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
               },
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

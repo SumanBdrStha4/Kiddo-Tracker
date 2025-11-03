@@ -46,6 +46,7 @@ class SqfliteHelper {
         mobile TEXT,
         wards INTEGER,
         status INTEGER,
+        pin TEXT,
         sessionid TEXT
       )
     ''');

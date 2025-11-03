@@ -10,6 +10,7 @@ class Parent {
   final int wards;
   final int status;
   final String sessionid;
+  final int pin;
 
   Parent({
     required this.userid,
@@ -23,6 +24,7 @@ class Parent {
     required this.wards,
     required this.status,
     required this.sessionid,
+    required this.pin,
   });
 
   factory Parent.fromJson(Map<String, dynamic> json) {
@@ -38,6 +40,7 @@ class Parent {
       wards: json['wards'] as int,
       status: json['status'] as int,
       sessionid: json['sessionid'] as String,
+      pin: json['pin'] as int,
     );
   }
 
@@ -54,6 +57,7 @@ class Parent {
       'wards': wards,
       'status': status,
       'sessionid': sessionid,
+      'pin': pin,
     };
   }
 }

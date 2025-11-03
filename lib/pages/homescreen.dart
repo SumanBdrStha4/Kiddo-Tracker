@@ -56,8 +56,6 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
-    // logged in Success store looggedin to sharedpreference
-    SharedPreferenceHelper.setUserLoggedIn(true);
     if (!_hasInitialized) {
       _initAsync();
       _hasInitialized = true;
@@ -77,6 +75,9 @@ class _HomeScreenState extends State<HomeScreen>
     await _mqttCompleter.future;
     await _subscribeToTopics();
     await _fetchRouteStoapge();
+    // await Workmanager().registerPeriodicTask("fetchChildrenTask", "fetchChildren", frequency: Duration(minutes: 15));
+    // // Register a one-off task to test the callback immediately
+    // await Workmanager().registerOneOffTask("fetchChildrenOneOff", "fetchChildren", initialDelay: Duration(seconds: 30));
   }
 
   Future<void> _subscribeToTopics() async {

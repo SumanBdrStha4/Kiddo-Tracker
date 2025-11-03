@@ -22,7 +22,7 @@ class ChildrenService {
     Logger().i('Fetching children...');
     try {
       // Clear previous data in DB
-      // _sqfliteHelper.clearAllData();
+      _sqfliteHelper.clearAllData();
 
       // Get from shared preferences
       final String? userId = await SharedPreferenceHelper.getUserNumber();
@@ -30,135 +30,139 @@ class ChildrenService {
       final response = await ApiService.fetchUserByMobile(userId!);
       final data = response.data;
       Logger().i(data);
-      if (data[0]['result'] == 'ok') {
-        final List userInfo = List.from(
-          data[1]['userdata'] as List<dynamic>? ?? [],
-        );
-        final List studentInfo = List.from(
-          data[2]['studentdata'] as List<dynamic>? ?? [],
-        );
-        Parent parent = Parent(
-          userid: userInfo[0]['userid'],
-          name: userInfo[0]['name'],
-          city: userInfo[0]['city'],
-          state: userInfo[0]['state'],
-          address: userInfo[0]['address'],
-          contact: userInfo[0]['contact'],
-          email: userInfo[0]['email'],
-          mobile: userInfo[0]['mobile'],
-          wards: userInfo[0]['wards'],
-          status: userInfo[0]['status'],
-          sessionid: userInfo[0]['sessionid'],
-        );
-        Logger().i(parent.toJson().toString());
-        // Store userInfo to sqflite
-        await _sqfliteHelper.insertUser(parent);
-        // Store session data
-        SharedPreferenceHelper.setUserNumber(userInfo[0]['userid']);
-        SharedPreferenceHelper.setUserSessionId(userInfo[0]['sessionid']);
-        Logger().i(
-          ' Mobile Number: ${userInfo[0]['userid']}, Session ID: ${userInfo[0]['sessionid']}',
-        );
-        // Fetch subscription data
-        await _fetchAndSetSubscriptionPlans(
-          userInfo[0]['userid'],
-          studentInfo,
-          userInfo[0]['sessionid'],
-        );
-
-        // Clear global children list before adding new children
-        children.clear();
-        List<RouteInfo> allParsedRouteInfo = [];
-        for (var student in studentInfo) {
-          Logger().i(student.toString());
-          List<RouteInfo> parsedRouteInfo = [];
-          if (student['route_info'] != null) {
-            if (student['route_info'] is String &&
-                (student['route_info'] as String).isNotEmpty) {
-              try {
-                var decoded = jsonDecode(student['route_info']);
-                if (decoded is List) {
-                  parsedRouteInfo = decoded
-                      .map<RouteInfo>(
-                        (e) {
-                          var json = e is String
-                              ? jsonDecode(e)
-                              : e as Map<String, dynamic>;
-                          json['school_location'] = student['school'];
-                          return RouteInfo.fromJson(json);
-                        },
-                      )
-                      .toList();
-                }
-              } catch (e) {
-                Logger().e("Error parsing route_info: $e");
-              }
-            } else if (student['route_info'] is List) {
-              parsedRouteInfo = (student['route_info'] as List)
-                  .map<RouteInfo>(
-                    (e) {
-                      var json = e is String
-                          ? jsonDecode(e)
-                          : e as Map<String, dynamic>;
-                      json['school_location'] = student['school'];
-                      return RouteInfo.fromJson(json);
-                    },
-                  )
-                  .toList();
-            }
-          }
-          Child child = Child(
-            studentId: student['student_id'],
-            name: student['name'],
-            nickname: student['nickname'],
-            school: student['school'],
-            class_name: student['class'],
-            rollno: student['rollno'],
-            age: student['age'],
-            gender: student['gender'],
-            tagId: student['tag_id'],
-            routeInfo: parsedRouteInfo,
-            tsp_id: (student['tsp_id'] != null && student['tsp_id'].isNotEmpty) ? List<String>.from(jsonDecode(student['tsp_id'])) : [],
-            status: student['status'],
-            onboard_status: student['onboard_status'],
-          );
-          // Store children data
-          children.add(child);
-          // Store child data to sqflite
-          await _sqfliteHelper.insertChild(child);
-          // Store routeInfo data
-          allParsedRouteInfo.addAll(parsedRouteInfo);
-          Logger().i("${child.toJson()} $parsedRouteInfo");
-        }
-
-        // Store topics
-        List<String> topics = children.map((child) => child.studentId).toList();
-        topics.addAll(
-          allParsedRouteInfo
-              .map((route) => '${route.routeId}/${route.oprId}')
-              .toList(),
-        );
-        _topics = topics;
-
-        // Clear and assign activeRoutes global variable
-        activeRoutes.clear();
-
-        return {
-          'success': true,
-          'result': {
-            'children': children,
-            'subscriptionPlans': subscriptionPlans,
-            'studentSubscriptions': studentSubscriptions,
-            'activeRoutes': activeRoutes,
-            'parent': parent,
-          },
-        };
-      } else {
-        return {'success': false, 'data': data};
-      }
+      return await processChildrenData(data);
     } catch (e) {
       Logger().e('Error fetching children: $e');
       return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> processChildrenData(List data) async {
+    // Clear previous data in DB
+      _sqfliteHelper.clearAllData();
+
+    if (data[0]['result'] == 'ok') {
+      final List userInfo = List.from(
+        data[1]['userdata'] as List<dynamic>? ?? [],
+      );
+      final List studentInfo = List.from(
+        data[2]['studentdata'] as List<dynamic>? ?? [],
+      );
+      Parent parent = Parent(
+        userid: userInfo[0]['userid'],
+        name: userInfo[0]['name'],
+        city: userInfo[0]['city'],
+        state: userInfo[0]['state'],
+        address: userInfo[0]['address'],
+        contact: userInfo[0]['contact'],
+        email: userInfo[0]['email'],
+        mobile: userInfo[0]['mobile'],
+        wards: userInfo[0]['wards'],
+        status: userInfo[0]['status'],
+        pin: userInfo[0]['pin'],
+        sessionid: userInfo[0]['sessionid'],
+      );
+      Logger().i(parent.toJson().toString());
+      // Store userInfo to sqflite
+      await _sqfliteHelper.insertUser(parent);
+      // Store session data
+      SharedPreferenceHelper.setUserNumber(userInfo[0]['userid']);
+      SharedPreferenceHelper.setUserSessionId(userInfo[0]['sessionid']);
+      Logger().i(
+        ' Mobile Number: ${userInfo[0]['userid']}, Session ID: ${userInfo[0]['sessionid']}',
+      );
+      // Fetch subscription data
+      await _fetchAndSetSubscriptionPlans(
+        userInfo[0]['userid'],
+        studentInfo,
+        userInfo[0]['sessionid'],
+      );
+
+      // Clear global children list before adding new children
+      children.clear();
+      List<RouteInfo> allParsedRouteInfo = [];
+      for (var student in studentInfo) {
+        Logger().i(student.toString());
+        List<RouteInfo> parsedRouteInfo = [];
+        if (student['route_info'] != null) {
+          if (student['route_info'] is String &&
+              (student['route_info'] as String).isNotEmpty) {
+            try {
+              var decoded = jsonDecode(student['route_info']);
+              if (decoded is List) {
+                parsedRouteInfo = decoded.map<RouteInfo>((e) {
+                  var json = e is String
+                      ? jsonDecode(e)
+                      : e as Map<String, dynamic>;
+                  json['school_location'] = student['school'];
+                  return RouteInfo.fromJson(json);
+                }).toList();
+              }
+            } catch (e) {
+              Logger().e("Error parsing route_info: $e");
+            }
+          } else if (student['route_info'] is List) {
+            parsedRouteInfo = (student['route_info'] as List).map<RouteInfo>((
+              e,
+            ) {
+              var json = e is String
+                  ? jsonDecode(e)
+                  : e as Map<String, dynamic>;
+              json['school_location'] = student['school'];
+              return RouteInfo.fromJson(json);
+            }).toList();
+          }
+        }
+        Child child = Child(
+          studentId: student['student_id'],
+          name: student['name'],
+          nickname: student['nickname'],
+          school: student['school'],
+          class_name: student['class'],
+          rollno: student['rollno'],
+          age: student['age'],
+          gender: student['gender'],
+          tagId: student['tag_id'],
+          routeInfo: parsedRouteInfo,
+          tsp_id: (student['tsp_id'] != null && student['tsp_id'].isNotEmpty)
+              ? List<String>.from(jsonDecode(student['tsp_id']))
+              : [],
+          status: student['status'],
+          onboard_status: student['onboard_status'],
+        );
+        // Store children data
+        children.add(child);
+        // Store child data to sqflite
+        await _sqfliteHelper.insertChild(child);
+        // Store routeInfo data
+        allParsedRouteInfo.addAll(parsedRouteInfo);
+        Logger().i("${child.toJson()} $parsedRouteInfo");
+      }
+
+      // Store topics
+      List<String> topics = children.map((child) => child.studentId).toList();
+      topics.addAll(
+        allParsedRouteInfo
+            .map((route) => '${route.routeId}/${route.oprId}')
+            .toList(),
+      );
+      _topics = topics;
+
+      // Clear and assign activeRoutes global variable
+      activeRoutes.clear();
+
+      return {
+        'success': true,
+        'result': {
+          'children': children,
+          'subscriptionPlans': subscriptionPlans,
+          'studentSubscriptions': studentSubscriptions,
+          'activeRoutes': activeRoutes,
+          'parent': parent,
+        },
+      };
+    } else {
+      return {'success': false, 'data': data};
     }
   }
 

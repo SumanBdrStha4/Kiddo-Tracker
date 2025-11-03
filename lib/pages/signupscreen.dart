@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kiddo_tracker/api/apimanage.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
@@ -20,6 +21,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _contactController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
+  final TextEditingController _pinController = TextEditingController();
 
   @override
   void dispose() {
@@ -30,6 +32,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _contactController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
+    _pinController.dispose();
     super.dispose();
   }
 
@@ -48,6 +51,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               'contact': _contactController.text,
               'email': _emailController.text,
               'mobile': _mobileController.text,
+              'pin': _pinController.text,
               'wards': "",
               'status': "",
             },
@@ -147,6 +151,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           controller: _mobileController,
                           keyboardType: TextInputType.phone,
                           icon: Icons.phone_android,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: TextFormField(
+                            controller: _pinController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(4),
+                            ],
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'PIN',
+                              prefixIcon: Icon(Icons.lock),
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter PIN';
+                              }
+                              if (value.length != 4) {
+                                return 'PIN must be exactly 4 digits';
+                              }
+                              return null;
+                            },
+                          ),
                         ),
                         _buildTextField(
                           label: 'Address',
