@@ -294,6 +294,9 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                                 color: Colors.black87,
                               ),
                             ),
+                            //display stop location arrival time
+                            const SizedBox(height: 4),
+                            
                             Text(
                               'Home: ${widget.routes.first.stopLocation}',
                               style: const TextStyle(

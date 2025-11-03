@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
+import 'package:kiddo_tracker/model/route.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:logger/logger.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -17,7 +20,10 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  Set<DateTime> _holidays = {};
+  DateTime? _rangeStart;
+  DateTime? _rangeEnd;
+  Map<DateTime, String> _holidayTypes = {};
+  final TextEditingController _reasonController = TextEditingController();
 
   @override
   void initState() {
@@ -30,11 +36,17 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
       final String? userId = await SharedPreferenceHelper.getUserNumber();
       final String? sessionId = await SharedPreferenceHelper.getUserSessionId();
       print('Fetching holidays for userId: $userId, sessionId: $sessionId');
-      // Get the list of routeInfo from child data
-      final List<dynamic> routeInfo = widget.child['routeInfo'] ?? [];
+      // Get the list of routes route_id and oprid from child route_info and print the output
+      final routeInfoJson = widget.child['route_info'] ?? '[]';
+      final List<dynamic> routeInfo = json.decode(routeInfoJson);
+
+      for (var route in routeInfo) {
+        print('Route ID: ${route['route_id']}, OPR ID: ${route['oprid']}');
+      }
+
       print('Route info: $routeInfo');
       if (userId != null && sessionId != null && routeInfo.isNotEmpty) {
-        Set<DateTime> allHolidays = {};
+        Map<DateTime, String> allHolidayTypes = {};
         for (var route in routeInfo) {
           final String opId = route['oprid'] ?? '';
           final String routeId = route['route_id'] ?? '';
@@ -44,6 +56,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
               userId,
               opId,
               routeId,
+              // "6",
+              // "OD36895900001",
               sessionId,
             );
             final data = response.data;
@@ -61,7 +75,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
                     date.isBefore(end.add(Duration(days: 1)));
                     date = date.add(Duration(days: 1))
                   ) {
-                    allHolidays.add(DateTime(date.year, date.month, date.day));
+                    allHolidayTypes[DateTime(date.year, date.month, date.day)] =
+                        'tsp';
                   }
                 }
               }
@@ -77,7 +92,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
                     date.isBefore(end.add(Duration(days: 1)));
                     date = date.add(Duration(days: 1))
                   ) {
-                    allHolidays.add(DateTime(date.year, date.month, date.day));
+                    allHolidayTypes[DateTime(date.year, date.month, date.day)] =
+                        'route';
                   }
                 }
               }
@@ -93,7 +109,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
                     date.isBefore(end.add(Duration(days: 1)));
                     date = date.add(Duration(days: 1))
                   ) {
-                    allHolidays.add(DateTime(date.year, date.month, date.day));
+                    allHolidayTypes[DateTime(date.year, date.month, date.day)] =
+                        'opr';
                   }
                 }
               }
@@ -106,16 +123,15 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
                     .split(', ')
                     .map((day) => day.trim())
                     .toList();
-                final Set<DateTime> weeklyOffs = _generateWeeklyOffDates(
-                  offDays,
-                );
-                allHolidays.addAll(weeklyOffs);
+                final Map<DateTime, String> weeklyOffs =
+                    _generateWeeklyOffDates(offDays);
+                allHolidayTypes.addAll(weeklyOffs);
               }
             }
           }
         }
         setState(() {
-          _holidays = allHolidays;
+          _holidayTypes = allHolidayTypes;
         });
       }
     } catch (e) {
@@ -123,8 +139,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
     }
   }
 
-  Set<DateTime> _generateWeeklyOffDates(List<String> offDays) {
-    Set<DateTime> weeklyOffs = {};
+  Map<DateTime, String> _generateWeeklyOffDates(List<String> offDays) {
+    Map<DateTime, String> weeklyOffs = {};
     DateTime startDate = DateTime.utc(2020, 1, 1);
     DateTime endDate = DateTime.utc(2030, 12, 31);
 
@@ -150,7 +166,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
       date = date.add(const Duration(days: 1))
     ) {
       if (offWeekdays.contains(date.weekday)) {
-        weeklyOffs.add(DateTime(date.year, date.month, date.day));
+        weeklyOffs[DateTime(date.year, date.month, date.day)] = 'weekoff';
       }
     }
 
@@ -168,16 +184,15 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
             lastDay: DateTime.utc(2030, 12, 31),
             focusedDay: _focusedDay,
             calendarFormat: _calendarFormat,
-            selectedDayPredicate: (day) {
-              return isSameDay(_selectedDay, day);
-            },
-            onDaySelected: (selectedDay, focusedDay) {
-              if (!isSameDay(_selectedDay, selectedDay)) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-              }
+            rangeStartDay: _rangeStart,
+            rangeEndDay: _rangeEnd,
+            rangeSelectionMode: RangeSelectionMode.toggledOn,
+            onRangeSelected: (start, end, focusedDay) {
+              setState(() {
+                _rangeStart = start;
+                _rangeEnd = end ?? start; // Allow single day selection
+                _focusedDay = focusedDay ?? DateTime.now();
+              });
             },
             onFormatChanged: (format) {
               if (_calendarFormat != format) {
@@ -191,14 +206,46 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
             },
             calendarBuilders: CalendarBuilders(
               defaultBuilder: (context, day, focusedDay) {
-                if (_holidays.contains(
-                  DateTime(day.year, day.month, day.day),
-                )) {
+                final dateKey = DateTime(day.year, day.month, day.day);
+                final holidayType = _holidayTypes[dateKey];
+                final isToday = isSameDay(day, DateTime.now());
+
+                if (isToday) {
                   return Container(
                     margin: const EdgeInsets.all(4.0),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: Colors.red,
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Text(
+                      '${day.day}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  );
+                } else if (holidayType != null) {
+                  Color color;
+                  switch (holidayType) {
+                    case 'tsp':
+                      color = Colors.yellow.shade100;
+                      break;
+                    case 'route':
+                      color = Colors.brown.shade100;
+                      break;
+                    case 'opr':
+                      color = Colors.green.shade100;
+                      break;
+                    case 'weekoff':
+                      color = Colors.red.shade100;
+                      break;
+                    default:
+                      color = Colors.grey.shade100;
+                  }
+                  return Container(
+                    margin: const EdgeInsets.all(4.0),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: color,
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                     child: Text(
@@ -212,16 +259,186 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          if (_selectedDay != null)
-            Padding(
+          //show what color represents which holiday type
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildLegendItem('TSP Holiday', Colors.yellow.shade100),
+                _buildLegendItem('Route Holiday', Colors.brown.shade100),
+                _buildLegendItem('OPR Holiday', Colors.green.shade100),
+                _buildLegendItem('Weekly Off', Colors.red.shade100),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Selected Date: ${_selectedDay!.toLocal()}'.split(' ')[0],
-                style: const TextStyle(fontSize: 18),
+              child: Card(
+                elevation: 4.0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '*Please select a date or date range from the calendar above to request leave.',
+                        style: TextStyle(fontSize: 14, color: Colors.redAccent),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_rangeStart != null && _rangeEnd != null)
+                        Container(
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          child: Text(
+                            _rangeStart == _rangeEnd
+                                ? 'Selected Date: ${_rangeStart!.day}-${_rangeStart!.month}-${_rangeStart!.year}'
+                                : 'Selected Range: ${_rangeStart!.day}-${_rangeStart!.month}-${_rangeStart!.year} to ${_rangeEnd!.day}-${_rangeEnd!.month}-${_rangeEnd!.year}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ),
+                      if (_rangeStart != null && _rangeEnd != null)
+                        const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _reasonController,
+                        decoration: const InputDecoration(
+                          labelText: 'Reason for Leave',
+                          border: OutlineInputBorder(),
+                          hintText: 'Enter the reason for the leave request',
+                        ),
+                        maxLines: 3,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a reason';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _submitLeaveRequest,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                          ),
+                          child: const Text(
+                            'Submit Leave Request',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
+          ),
         ],
       ),
+    );
+  }
+
+  void _submitLeaveRequest() async {
+    if (_rangeStart == null || _reasonController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a date range and provide a reason.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      _rangeStart == _rangeEnd
+          ? _rangeEnd = _rangeStart
+          : _rangeEnd = _rangeEnd;
+
+      final String? userId = await SharedPreferenceHelper.getUserNumber();
+      final String? sessionId = await SharedPreferenceHelper.getUserSessionId();
+
+      if (userId != null && sessionId != null) {
+        String startDate = _rangeStart!.toIso8601String().split('T').first;
+        String endDate = _rangeEnd!.toIso8601String().split('T').first;
+        String tspId = widget.child['tsp_id']
+            .toString()
+            .replaceAll('["', '')
+            .replaceAll('"]', '')
+            .trim();
+        print(widget.child['tsp_id'].runtimeType);
+        Logger().d('Submitting leave request from $startDate to $endDate');
+        Logger().d('Child ID: ${widget.child['student_id']}, TSP ID: $tspId');
+        Logger().d('User ID: $userId, Session ID: $sessionId');
+        final response = await ApiService.sendAbsentDays(
+          startDate,
+          endDate,
+          tspId,
+          widget.child['student_id'] ?? '',
+          sessionId,
+          userId,
+        );
+        final data = response.data;
+        Logger().d('Leave request response: $data');
+        if (data[0]['result'] == 'ok') {
+          // For now, just show a success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Leave request submitted successfully!'),
+            ),
+          );
+
+          // Clear the form
+          setState(() {
+            _rangeStart = null;
+            _rangeEnd = null;
+            _reasonController.clear();
+          });
+        } else {
+          String errorData = data[1]['data'];
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $errorData')));
+        }
+      }
+    } catch (e) {
+      Logger().e('Error submitting leave request: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to submit leave request. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  _buildLegendItem(String s, Color shade100) {
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: shade100,
+            borderRadius: BorderRadius.circular(4.0),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(s),
+      ],
     );
   }
 }

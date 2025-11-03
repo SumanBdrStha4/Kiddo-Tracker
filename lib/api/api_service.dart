@@ -180,4 +180,25 @@ class ApiService {
       },
     );
   }
+
+  static Future<Response> sendAbsentDays(
+    String startDate,
+    String endDate,
+    String tspId,
+    String studentId,
+    String sessionId,
+    String userId,
+  ) async {
+    return await ApiManager().post(
+      'ktuserstdoffdayadd/',
+      data: {
+        'userid': userId,
+        'start_date': startDate,
+        'end_date': endDate,
+        'tsp_id': tspId,
+        'student_id': studentId,
+        'sessionid': sessionId,
+      },
+    );
+  }
 }
