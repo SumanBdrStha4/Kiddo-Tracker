@@ -2,6 +2,7 @@ class RouteInfo {
   final String routeId;
   final String routeName;
   final int routeType;
+  final String startTime;
   final String stopArrivalTime;
   final String stopName;
   final String stopLocation;
@@ -14,6 +15,7 @@ class RouteInfo {
     required this.routeId,
     required this.routeName,
     required this.routeType,
+    required this.startTime,
     required this.stopArrivalTime,
     required this.stopName,
     required this.stopLocation,
@@ -28,6 +30,7 @@ class RouteInfo {
       routeId: json['route_id'] ?? '',
       routeName: json['route_name'] ?? '',
       routeType: json['route_type'] ?? 0,
+      startTime: json['start_time'] ?? '',
       stopArrivalTime: json['stop_arrival_time'] ?? '',
       stopName: json['stop_name'] ?? '',
       stopLocation: json['location'] ?? '',
@@ -47,6 +50,7 @@ class RouteInfo {
       'vehicle_id': vehicleId,
       'stop_id': stopId,
       'stop_name': stopName,
+      'start_time': startTime,
       'stop_arrival_time': stopArrivalTime,
       'location': stopLocation,
       'school_location': schoolLocation,

@@ -1,4 +1,4 @@
-import 'dart:async';
+   import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -590,44 +590,89 @@ class _HomeScreenState extends State<HomeScreen>
     //get tsp id from database
     final kkmklk = await _sqfliteHelper.getChildTspId();
     Logger().i('kkmklk: $kkmklk');
-    List<String> kkmklk2 = [];
-    for (var item in kkmklk) {
-      if (item.isNotEmpty) {
-        try {
-          List<dynamic> decoded = jsonDecode(item);
-          kkmklk2.addAll(decoded.map((e) => e.toString()));
-        } catch (e) {
-          kkmklk2.add(item);
-        }
+    for (var i in kkmklk) {
+      final tspId = i['tsp_id'];
+      //store multi route_id and oprid
+      List<String> listRouteId = [];
+      List<String> listOprid = [];
+      //run loop for i['routes'] to get oprid and route_id
+      for (var route in i['routes']) {
+        Logger().i('oprid: ${route['oprid']}, route_id: ${route['route_id']}');
+        //store the route_id and oprid
+        listRouteId.add(route['route_id']);
+        listOprid.add(route['oprid']);
       }
-    }
-    Logger().i('kkmklk2: $kkmklk2');
-    for (var tspId in kkmklk2) {
-      Logger().i('tspId: $tspId, userId: $userId, sessionId: $sessionId');
+      //fetch route storage from api
       ApiManager()
           .post(
             'kturoutelistbytsp',
             data: {'userid': userId, 'sessionid': sessionId, 'tsp_id': tspId},
           )
           .then((response) {
-            Logger().i(response.data);
-            if (response.data[0]['result'] == 'ok') {
-              if (response.data[1]['data'] != null) {
-                //save to database insertRoute
-                for (var route in response.data[1]['data']) {
-                  _sqfliteHelper.insertRoute(
-                    route['oprid'],
-                    route['route_id'],
-                    route['timing'],
-                    route['vehicle_id'],
-                    route['route_name'],
-                    route['type'],
-                    route['stop_list'],
-                    route['stop_details'],
+            if (response.statusCode == 200) {
+              Logger().i(response.data);
+              if (response.data[0]['result'] == 'ok') {
+                //my oprid and route_id
+                for (var j = 0; j < listOprid.length; j++) {
+                  Logger().i(
+                    'Matching oprid: ${listOprid[j]}, route_id: ${listRouteId[j]}',
                   );
                 }
+                // for loop the response.data[1]['data'] to match oprid and route_id
+                for (var route in response.data[1]['data']) {
+                  Logger().i('djgbdssdfdsdfg: $route[oprid] xdgxdfgdxfgdx $route[route_id]');
+                  //now match my oprid and route_id with the route
+                  if (listOprid.contains(route['oprid']) &&
+                      listRouteId.contains(route['route_id'])) {
+                    Logger().i(
+                      'Load the Data oprid: ${route['oprid']}, route_id: ${route['route_id']}',
+                    );
+                  }
+
+                  // _sqfliteHelper.insertRoute(
+                  //   route['oprid'],
+                  //   route['route_id'],
+                  //   route['timing'],
+                  //   route['vehicle_id'],
+                  //   route['route_name'],
+                  //   route['type'],
+                  //   route['stop_list'],
+                  //   route['stop_details'],
+                  // );
+                  // //print to console
+                  // Logger().i(
+                  //   'Inserted route: oprid=${route['oprid']}, route_id=${route['route_id']}, route_name=${route['route_name']}, type=${route['type']}, timing=${route['timing']}, vehicle_id=${route['vehicle_id']}, stop_list=${route['stop_list']}, stop_details=${route['stop_details']}',
+                  // );
+                }
+                // if (response.data[1]['data'] != null) {
+                //   //save to database insertRoute
+                //   for (var routes in response.data[1]['data']) {
+                //     //match oprid and route_id before insert
+                //     if (routes['oprid'] != route['oprid'] ||
+                //         routes['route_id'] != route['route_id']) {
+                //       continue;
+                //     }
+                //     _sqfliteHelper.insertRoute(
+                //       routes['oprid'],
+                //       routes['route_id'],
+                //       routes['timing'],
+                //       routes['vehicle_id'],
+                //       routes['route_name'],
+                //       routes['type'],
+                //       routes['stop_list'],
+                //       routes['stop_details'],
+                //     );
+                //     //print to console
+                //     Logger().i(
+                //       'Inserted route: oprid=${routes['oprid']}, route_id=${routes['route_id']}, route_name=${routes['route_name']}, type=${routes['type']}, timing=${routes['timing']}, vehicle_id=${routes['vehicle_id']}, stop_list=${routes['stop_list']}, stop_details=${routes['stop_details']}',
+                //     );
+                //   }
+                // }
               }
             }
+          })
+          .catchError((error) {
+            Logger().e('Error fetching route storage for tspId $tspId: $error');
           });
     }
   }

@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/api/apimanage.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
+import 'package:logger/logger.dart';
 
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
+  String? mobile;
+  SignUpScreen({super.key, this.mobile});
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
+  final Logger logger = Logger();
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _nameController = TextEditingController();
@@ -22,6 +26,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _pinController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _contactController.text = widget.mobile ?? '';
+  }
 
   @override
   void dispose() {
@@ -51,21 +61,45 @@ class _SignUpScreenState extends State<SignUpScreen> {
               'contact': _contactController.text,
               'email': _emailController.text,
               'mobile': _mobileController.text,
-              'pin': _pinController.text,
-              'wards': "",
-              'status': "",
+              'pin': int.parse(_pinController.text),
+              'wards': "0",
+              'status': "0",
             },
           )
           .then((response) {
             if (response.statusCode == 200) {
               if (response.data[0]['result'] == 'ok') {
-                SharedPreferenceHelper.setUserSessionId(
+                // SharedPreferenceHelper.setUserSessionId(
+                //   response.data[1]['sessionid'],
+                // );
+                //call logout api
+                ApiService.logoutUser(
+                  _contactController.text,
                   response.data[1]['sessionid'],
                 );
-                Navigator.pushNamed(context, AppRoutes.main);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sign up successful')),
-                );
+                if (response.statusCode == 200) {
+                  logger.i(response.toString());
+                  if (response.data[0]['result'] == 'ok') {
+                    Navigator.pushNamed(context, AppRoutes.pin);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sign up successful')),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: ${response.data['message']}'),
+                      ),
+                    );
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Failed to logout: ${response.statusMessage}',
+                      ),
+                    ),
+                  );
+                }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Error: ${response.data['message']}')),
@@ -89,12 +123,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     required TextEditingController controller,
     TextInputType? keyboardType,
     IconData? icon,
+    bool enabled = true,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
+        enabled: enabled,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon != null ? Icon(icon) : null,
@@ -138,7 +174,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         _buildTextField(
                           label: 'Mobile No.',
                           controller: _contactController,
+                          keyboardType: TextInputType.phone,
                           icon: Icons.phone,
+                          enabled: false,
                         ),
                         _buildTextField(
                           label: 'Email',

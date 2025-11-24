@@ -1,11 +1,17 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/api/apimanage.dart';
 import 'package:kiddo_tracker/pages/addchildscreen.dart';
+import 'package:kiddo_tracker/pages/forgetpinscreen.dart';
 import 'package:kiddo_tracker/pages/request_leave_screen.dart';
+import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
+import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
+
+import 'changepinscreen.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({super.key});
@@ -287,6 +293,67 @@ class _SettingScreenState extends State<SettingScreen> {
                 ),
               ),
             ),
+            SizedBox(height: 30),
+            // Account Section
+            Text(
+              'Account',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+            Divider(
+              thickness: 2,
+              color: Theme.of(context).primaryColor.withOpacity(0.5),
+            ),
+            SizedBox(height: 10),
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.lock, size: 30, color: Colors.white),
+                ),
+                title: Text('Change PIN'),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  color: Theme.of(context).primaryColor,
+                ),
+                onTap: () => _changePin(),
+              ),
+            ),
+            SizedBox(height: 8),
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.logout,
+                    size: 30,
+                    color: Colors.white,
+                  ),
+                ),
+                title: Text('Logout'),
+                trailing: Icon(Icons.arrow_forward_ios, color: Colors.red),
+                onTap: () => _logout(),
+              ),
+            ),
           ],
         ),
       ),
@@ -400,18 +467,83 @@ class _SettingScreenState extends State<SettingScreen> {
       );
     }
   }
-  
+
   void dataSync() {
     //run all the api and update the database.
-
   }
 
   void requestLeave(Map<String, dynamic> child) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => RequestLeaveScreen(child: child),
-      ),
+      MaterialPageRoute(builder: (context) => RequestLeaveScreen(child: child)),
     );
+  }
+
+  void _changePin() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ChangePinScreen()),
+    );
+  }
+
+  void _logout() async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: Text('Logout', style: TextStyle(color: Colors.red)),
+              onPressed: () async {
+                // call api to logout
+                logout();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void logout() async {
+    String? mobileNumber = await SharedPreferenceHelper.getUserNumber() ?? '';
+    String? session = await SharedPreferenceHelper.getUserSessionId() ?? '';
+
+    Response response =
+        ApiManager().post(
+              'ktrackuserlogout',
+              data: {'userid': mobileNumber, 'sessionid': session},
+            )
+            as Response;
+    if (response.statusCode == 200 && response.data[0]['result'] == 'ok') {
+      Navigator.of(context).pop();
+      // Clear shared preferences
+      await SharedPreferenceHelper.clearAllExceptNumberAndLogin();
+      await SharedPreferenceHelper.setUserLoggedIn(false);
+      // Clear database
+      sqfliteHelper.clearAllData();
+      // Navigate to login
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.login,
+        (route) => false,
+      );
+    } else {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to logout. Please try again.',
+            style: TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
   }
 }

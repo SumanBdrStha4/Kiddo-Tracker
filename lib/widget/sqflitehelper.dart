@@ -81,7 +81,7 @@ class SqfliteHelper {
         route_name TEXT,
         type INTEGER,
         stop_list TEXT,
-        vehicle_id TEXT
+        vehicle_id TEXT,
         stop_details TEXT
       )
     ''');
@@ -223,18 +223,37 @@ class SqfliteHelper {
     );
   }
 
-  //get child tsp_id in list
-  Future<List<String>> getChildTspId() async {
+  //return array of an object{tspid, oprid, routeid} child tsp_id with route_info's oprid and route_id
+  Future<List<Map<String, dynamic>>> getChildTspId() async {
     final dbClient = await db;
     final results = await dbClient.query(
       'child',
-      columns: ['tsp_id'],
-      distinct: true,
+      columns: ['tsp_id', 'route_info'],
     );
-    return results
-        .map((e) => e['tsp_id'] as String)
-        .where((element) => element.isNotEmpty)
-        .toList();
+    List<Map<String, dynamic>> tspData = [];
+    for (var e in results) {
+      try {
+        final tspIdRaw = e['tsp_id'] as String?;
+        final routeInfoRaw = e['route_info'] as String?;
+
+        if (tspIdRaw != null && routeInfoRaw != null) {
+          final List<dynamic> tspList = jsonDecode(tspIdRaw);
+          final List<dynamic> routeList = jsonDecode(routeInfoRaw);
+          for (var tspId in tspList) {
+            var tspRoutes = routeList
+                .where(
+                  (route) => route['route_id'].toString().startsWith(tspId),
+                )
+                .toList();
+
+            tspData.add({'tsp_id': tspId, 'routes': tspRoutes});
+          }
+        }
+      } catch (e) {
+        Logger().e('Error parsing tsp_id or route_info: $e');
+      }
+    }
+    return tspData;
   }
 
   //get route_info by student_id

@@ -162,7 +162,7 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
       logger.i('Setting new PIN for $mobile, OTP: $otp, PIN: $pin');
 
       // await Future.delayed(const Duration(seconds: 2));
-      final response = await ApiService.forgotPassword(mobile, otp, pin);
+      final response = await ApiService.forgotPassword(mobile);
 
       if (response.statusCode == 200) {
         logger.i(response.toString());

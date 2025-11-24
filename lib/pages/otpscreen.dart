@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/services/children_service.dart';
 import 'package:kiddo_tracker/services/workmanager_callback.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:logger/logger.dart';
 
+import '../api/api_service.dart';
 import '../routes/routes.dart';
 
 class OTPScreen extends StatefulWidget {
@@ -22,13 +25,79 @@ class _OTPScreenState extends State<OTPScreen> {
   final Logger logger = Logger();
 
   bool _isLoading = false;
+  int _remainingTime = 60;
+  Timer? _timer;
+  bool _canResend = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
 
   @override
   void dispose() {
     for (final c in _controllers) {
       c.dispose();
     }
+    _timer?.cancel();
     super.dispose();
+  }
+
+  void _startTimer() {
+    _remainingTime = 30;
+    _canResend = false;
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          if (_remainingTime > 0) {
+            _remainingTime--;
+          } else {
+            _canResend = true;
+            _timer?.cancel();
+          }
+        });
+      }
+    });
+  }
+
+  Future<void> _resendOTP() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final mobileNumber = widget.mobile ?? '';
+      final response = await ApiService.sendOTP(mobileNumber);
+
+      if (response.statusCode == 200) {
+        logger.i(response.toString());
+        if (response.data[0]['result'] == 'ok') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('OTP sent successfully')),
+          );
+          _startTimer();
+        } else {
+          throw Exception('Error: ${response.data['message']}');
+        }
+      } else {
+        throw Exception('Failed to send OTP: ${response.statusMessage}');
+      }
+    } catch (e, stacktrace) {
+      logger.e('Error resending OTP', error: e, stackTrace: stacktrace);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to resend OTP. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _signIn() async {
@@ -46,32 +115,31 @@ class _OTPScreenState extends State<OTPScreen> {
     });
 
     try {
-      // Save mobile number in shared preferences
-      SharedPreferenceHelper.setUserNumber(widget.mobile ?? '');
-
       String mobileNumber = widget.mobile ?? '';
-      // final response = await ApiService.verifyOTP(mobileNumber, otp);
+      final response = await ApiService.verifyOTP(mobileNumber, otp);
 
-      // if (response.statusCode == 200) {
-      //   logger.i(response.toString());
-      //   if (response.data[0]['result'] == 'ok') {
-      // call another method
-      _fetchChildren();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP verified successfully')),
-      );
-      //   } else if (response.data[0]['result'] == 'Invaild OTP') {
-      //     ScaffoldMessenger.of(
-      //       context,
-      //     ).showSnackBar(const SnackBar(content: Text('Invaild OTP')));
-      //   }
-      // } else {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(
-      //       content: Text('Failed to verify OTP: ${response.statusMessage}'),
-      //     ),
-      //   );
-      // }
+      if (response.statusCode == 200) {
+        logger.i(response.toString());
+        if (response.data[0]['result'] == 'ok') {
+          // Save mobile number in shared preferences
+          SharedPreferenceHelper.setUserNumber(widget.mobile ?? '');
+          // call another method
+          _fetchChildren();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('OTP verified successfully')),
+          );
+        } else if (response.data[0]['result'] == 'Invaild OTP') {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Invaild OTP')));
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to verify OTP: ${response.statusMessage}'),
+          ),
+        );
+      }
     } catch (e, stacktrace) {
       logger.e(
         'Error during OTP verification',
@@ -188,6 +256,35 @@ class _OTPScreenState extends State<OTPScreen> {
                             ),
                           ),
                   ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _canResend
+                          ? 'Didn\'t receive OTP?'
+                          : 'Resend OTP in $_remainingTime seconds',
+                      style: const TextStyle(
+                        color: Color(0xFF837E93),
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (_canResend) ...[
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: _isLoading ? null : _resendOTP,
+                        child: const Text(
+                          'Resend',
+                          style: TextStyle(
+                            color: Color(0xFF9F7BFF),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

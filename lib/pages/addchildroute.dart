@@ -27,7 +27,9 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
   String? _userId;
   String? _sessionId;
   List<dynamic>? _institutes = [];
+  List<dynamic>? _tspList = [];
   String? _selectedInstitute;
+  int? _selectedSchool;
 
   final List<RouteList> _routes = [];
   List<String> _times = [];
@@ -43,6 +45,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
   String? _selectedStopageName;
   String? _selectedHomeGeo;
   String? _schoolStopGeo;
+  String? _selectedStopAriveTime;
   String? _stopageId;
   String? _vehicleId;
   //for round way store multi routes
@@ -59,6 +62,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
   String? _onwardStopageName;
   String? _onwardHomeGeo;
   String? _onwardSchoolStopGeo;
+  String? _onwardStopAriveTime;
   String? _onwardStopageId;
   String? _onwardVehicleId;
   List<String> _onwardTimes = [];
@@ -75,6 +79,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
   String? _returnStopageName;
   String? _returnHomeGeo;
   String? _returnSchoolStopGeo;
+  String? _returnStopAriveTime;
   String? _returnStopageId;
   String? _returnVehicleId;
   List<String> _returnTimes = [];
@@ -129,6 +134,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                         routeId: _selectedRouteId ?? '',
                         routeType: _selectedRouteType ?? 0,
                         routeName: _selectedRouteName ?? '',
+                        startTime: _selectedStopAriveTime ?? '',
                         stopArrivalTime: _selectedTime ?? '',
                         stopName: _selectedStopageName ?? '',
                         stopLocation: _selectedHomeGeo ?? '',
@@ -147,9 +153,12 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                     );
                   }
                 } else {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text("Data not saved."), backgroundColor: Colors.redAccent,));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Data not saved."),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
                 }
               }
             });
@@ -190,6 +199,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                         routeId: _onwardRouteId ?? '',
                         routeType: _onwardRouteType ?? 0,
                         routeName: _onwardRouteName ?? '',
+                        startTime: _onwardStopAriveTime ?? '',
                         stopArrivalTime: _onwardTime ?? '',
                         stopName: _onwardStopageName ?? '',
                         stopLocation: _onwardHomeGeo ?? '',
@@ -228,6 +238,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                                     routeId: _returnRouteId ?? '',
                                     routeType: _returnRouteType ?? 0,
                                     routeName: _returnRouteName ?? '',
+                                    startTime: _returnStopAriveTime ?? '',
                                     stopArrivalTime: _returnTime ?? '',
                                     stopName: _returnStopageName ?? '',
                                     stopLocation: _returnHomeGeo ?? '',
@@ -322,14 +333,20 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
       final provider = Provider.of<ChildrenProvider>(context, listen: false);
       await provider.updateChildren();
       await provider.subscribeToTopics();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("New Route Added Successfully."), backgroundColor: Colors.green,));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("New Route Added Successfully."),
+          backgroundColor: Colors.green,
+        ),
+      );
     } else {
       // Handle the case when widget.stdId is null
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: widget.stdId is null'), backgroundColor: Colors.redAccent,));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: widget.stdId is null'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
@@ -355,7 +372,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
           vertical: 12,
         ),
       ),
-      initialValue: type == 'single'
+      value: type == 'single'
           ? _selectedRoute
           : (type == 'onward' ? _onwardRoute : _returnRoute),
       items: _routes
@@ -414,6 +431,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
             _selectedStopage = null;
             _selectedHomeGeo = null;
             _schoolStopGeo = null;
+            _selectedStopAriveTime = null;
             _selectedStopageName = null;
           } else if (type == 'onward') {
             _onwardRoute = value;
@@ -450,6 +468,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
             _onwardStopage = null;
             _onwardHomeGeo = null;
             _onwardSchoolStopGeo = null;
+            _onwardStopAriveTime = null;
             _onwardStopageName = null;
           } else {
             _returnRoute = value;
@@ -486,6 +505,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
             _returnStopage = null;
             _returnHomeGeo = null;
             _returnSchoolStopGeo = null;
+            _returnStopAriveTime = null;
             _returnStopageName = null;
           }
         });
@@ -515,7 +535,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
           vertical: 12,
         ),
       ),
-      initialValue: type == 'single'
+      value: type == 'single'
           ? _selectedTime
           : (type == 'onward' ? _onwardTime : _returnTime),
       items:
@@ -734,16 +754,19 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                     _selectedStopage = stopage['value'];
                     _selectedStopageName = stopage['value'];
                     _selectedHomeGeo = stopage['location'];
+                    _selectedStopAriveTime = stopage['time'];
                     _stopageId = stopage['key'];
                   } else if (type == 'onward') {
                     _onwardStopage = stopage['value'];
                     _onwardStopageName = stopage['value'];
                     _onwardHomeGeo = stopage['location'];
+                    _onwardStopAriveTime = stopage['time'];
                     _onwardStopageId = stopage['key'];
                   } else {
                     _returnStopage = stopage['value'];
                     _returnStopageName = stopage['value'];
                     _returnHomeGeo = stopage['location'];
+                    _returnStopAriveTime = stopage['time'];
                     _returnStopageId = stopage['key'];
                   }
                 });
@@ -759,17 +782,19 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
     return TextFormField(
       controller: _instituteController,
       decoration: InputDecoration(
-        labelText: 'TSP ID',
+        labelText: 'School Name',
         prefixIcon: Icon(Icons.school, color: colorScheme.primary),
         suffixIcon: IconButton(
           //check icon is search or clear
           icon: Icon(_searchIcon),
           onPressed: () {
             if (_searchIcon == Icons.search) {
-              searchInstitite();
+              searchSchool();
             } else {
               //clear all
               _instituteController.clear();
+              _selectedSchool = null;
+              _selectedInstitute = null;
               reset_all();
               _searchIcon = Icons.search;
               //set focus on institute field
@@ -788,7 +813,50 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
         ),
       ),
       validator: (value) =>
-          value == null || value.isEmpty ? 'Enter TSP ID' : null,
+          value == null || value.isEmpty ? 'Enter School Name' : null,
+    );
+  }
+
+  Widget _buildTspDropdown(ColorScheme colorScheme) {
+    return DropdownButtonFormField<String>(
+      decoration: InputDecoration(
+        labelText: 'TSP',
+        prefixIcon: Icon(Icons.list, color: colorScheme.primary),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: colorScheme.outline),
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      value: _selectedInstitute,
+      items: _tspList?.map((tsp) {
+        return DropdownMenuItem<String>(
+          value: tsp['tsp_id'],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(tsp['name'] ?? ''),
+              Text(
+                tsp['city'] ?? '',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: (value) {
+        setState(() {
+          _selectedInstitute = value;
+          _getrouteListBytsp();
+        });
+      },
+      validator: (value) => value == null ? 'Select a TSP' : null,
+      dropdownColor: colorScheme.surface,
+      style: TextStyle(color: colorScheme.onSurface),
     );
   }
 
@@ -800,7 +868,10 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
           if (_selectedTripType == 1) {
             if (_selectedStopage == null) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Please select a stopage'), backgroundColor: Colors.red,),
+                SnackBar(
+                  content: Text('Please select a stopage'),
+                  backgroundColor: Colors.red,
+                ),
               );
               return;
             }
@@ -1150,6 +1221,8 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
             children: [
               _buildInstituteField(colorScheme),
               const SizedBox(height: 16),
+              _buildTspDropdown(colorScheme),
+              const SizedBox(height: 16),
               ToggleButtons(
                 isSelected: [_selectedTripType == 1, _selectedTripType == 2],
                 onPressed: (index) {
@@ -1237,17 +1310,17 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
     }
   }
 
-  void searchInstitite() async {
+  void searchSchool() async {
     //print data
-    final tspName = _instituteController.text;
+    final schoolName = _instituteController.text;
     _userId = await SharedPreferenceHelper.getUserNumber();
     _sessionId = await SharedPreferenceHelper.getUserSessionId();
     //run an api to get all institutes base on _instituteController
     ApiManager()
         .post(
-          'ktusertspnamesearch',
+          'ktuserschoolsearch/',
           data: {
-            'tsp_name': tspName,
+            'schoolname': schoolName,
             'userid': _userId,
             'sessionid': _sessionId,
           },
@@ -1326,11 +1399,12 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                             color: Theme.of(context).primaryColor,
                           ),
                           title: Text(
-                            institute['schoolname'],
+                            //name and board
+                            '${institute['schoolname']} (${institute['board']})',
                             style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           subtitle: Text(
-                            institute['tsp_id'],
+                            institute['city'],
                             style: TextStyle(
                               color: Theme.of(
                                 context,
@@ -1339,12 +1413,12 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                           ),
                           onTap: () {
                             setState(() {
-                              _selectedInstitute = institute['tsp_id'];
+                              _selectedSchool = institute['school_id'];
                               _instituteController.text =
                                   institute['schoolname'];
                               //after select change the search icon to clear icon
                               _searchIcon = Icons.clear;
-                              _getrouteListBytsp();
+                              _getTspBySchool();
                             });
                             Navigator.pop(context);
                           },
@@ -1359,6 +1433,26 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
         ),
       ),
     );
+  }
+
+  void _getTspBySchool() {
+    ApiManager()
+        .post(
+          'logapptspbyschool',
+          data: {'passkey': "LogAp#KdTrac\$Skul", 'school_id': _selectedSchool},
+        )
+        .then((response) {
+          if (response.statusCode == 200) {
+            Logger().i(response.data);
+            if (response.data[0]['result'] == 'ok') {
+              callback.call(response.data);
+              if (!mounted) return;
+              setState(() {
+                _tspList = response.data[1]['data'] as List<dynamic>?;
+              });
+            }
+          }
+        });
   }
 
   void _getrouteListBytsp() {
@@ -1394,6 +1488,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                   _selectedorpId = null;
                   _selectedStopage = null;
                   _selectedHomeGeo = null;
+                  _selectedStopAriveTime = null;
                   _schoolStopGeo = null;
                   _stopageId = null;
                   _vehicleId = null;
@@ -1416,6 +1511,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
       _selectedStopage = null;
       _selectedHomeGeo = null;
       _schoolStopGeo = null;
+      _selectedStopAriveTime = null;
       _stopageId = null;
       _vehicleId = null;
 
@@ -1429,6 +1525,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
       _onwardStopageName = null;
       _onwardHomeGeo = null;
       _onwardSchoolStopGeo = null;
+      _onwardStopAriveTime = null;
       _onwardStopageId = null;
       _onwardVehicleId = null;
       _onwardTimes = [];
@@ -1444,6 +1541,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
       _returnStopageName = null;
       _returnHomeGeo = null;
       _returnSchoolStopGeo = null;
+      _returnStopAriveTime = null;
       _returnStopageId = null;
       _returnVehicleId = null;
       _returnTimes = [];

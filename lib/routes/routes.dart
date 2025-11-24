@@ -32,7 +32,8 @@ class AppRoutes {
       case forgetPin:
         return MaterialPageRoute(builder: (_) => ForgetPINScreen());
       case signup:
-        return MaterialPageRoute(builder: (_) => const SignUpScreen());
+      final mobileNumber = settings.arguments as String;
+        return MaterialPageRoute(builder: (_) =>  SignUpScreen(mobile: mobileNumber));
       case main:
         return MaterialPageRoute(builder: (_) => const MainScreen());
       case subscribe:
@@ -63,7 +64,7 @@ class AppRoutes {
       otp: (context) => OTPScreen(),
       pin: (context) => PINScreen(),
       forgetPin: (context) => ForgetPINScreen(),
-      signup: (context) => const SignUpScreen(),
+      signup: (context) => SignUpScreen(),
       main: (context) => const MainScreen(),
       subscribe: (context) => const SubscriptionScreen(),
       addRoute: (context) => AddChildRoutePage(),

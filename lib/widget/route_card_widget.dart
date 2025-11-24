@@ -294,9 +294,17 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                                 color: Colors.black87,
                               ),
                             ),
-                            //display stop location arrival time
                             const SizedBox(height: 4),
-                            
+                            //display stop location arrival time
+                            Text(
+                              'Stop Arrival Time: ${widget.routes.first.stopArrivalTime}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
                             Text(
                               'Home: ${widget.routes.first.stopLocation}',
                               style: const TextStyle(
@@ -321,10 +329,8 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                   ),
                   const SizedBox(height: 12),
                   InkWell(
-                    onTap: () => widget.onOnboardTap!(
-                            widget.routeId,
-                            widget.routes,
-                          ),
+                    onTap: () =>
+                        widget.onOnboardTap!(widget.routeId, widget.routes),
                     borderRadius: BorderRadius.circular(8),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(

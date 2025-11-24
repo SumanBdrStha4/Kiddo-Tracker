@@ -20,6 +20,13 @@ class ApiService {
     );
   }
 
+  static Future<Response> logoutUser(String mobile, String sessionId) async {
+    return await ApiManager().post(
+      'ktrackuserlogout/',
+      data: {'userid': mobile, 'sessionid': sessionId},
+    );
+  }
+
   static Future<Response> fetchUserByMobile(String mobile) async {
     return await ApiManager().post(
       'ktrackuserbymobile',
@@ -27,15 +34,8 @@ class ApiService {
     );
   }
 
-  static Future<Response> forgotPassword(
-    String mobile,
-    String otp,
-    String pin,
-  ) async {
-    return await ApiManager().post(
-      'ktuserforgotpwd/',
-      data: {'mobile': mobile, 'otpval': otp, 'newpin': pin},
-    );
+  static Future<Response> forgotPassword(String mobile) async {
+    return await ApiManager().post('ktuforgopwdotp/', data: {'mobile': mobile});
   }
 
   static Future<Response> fetchSubscriptionPlans(
@@ -198,6 +198,23 @@ class ApiService {
         'tsp_id': tspId,
         'student_id': studentId,
         'sessionid': sessionId,
+      },
+    );
+  }
+
+  static Future<Response> changePin(
+    String user,
+    String session,
+    String pin1,
+    String pin2,
+  ) async {
+    return await ApiManager().post(
+      'ktuserchangepwd/',
+      data: {
+        'userid': user,
+        'oldpin': pin1,
+        'newpin': pin2,
+        'sessionid': session,
       },
     );
   }

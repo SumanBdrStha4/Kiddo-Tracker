@@ -20,7 +20,7 @@ class MQTTService {
 
   Future<void> connect() async {
     client = MqttServerClient.withPort(
-      '172.105.52.11',
+      '172.235.25.172',
       'flutter_client_${DateTime.now().millisecondsSinceEpoch}',
       1883,
     );
