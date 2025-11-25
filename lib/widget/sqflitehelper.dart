@@ -408,20 +408,31 @@ class SqfliteHelper {
   }
 
   //insert route
-  void insertRoute(item, item2, item3, item4, item5, item6, item7, item8) {
-    //insert route into routes table
-    db.then((client) {
-      client.insert('routes', {
-        'oprid': item,
-        'route_id': item2,
-        'timing': item3,
-        'vehicle_id': item4,
-        'route_name': item5,
-        'type': item6,
-        'stop_list': item7,
-        'stop_details': item8,
+  Future<void> insertRoute(
+    String oprid,
+    String routeId,
+    String timing,
+    String vehicleId,
+    String routeName,
+    String type,
+    List stopList,
+    String stopDetails,
+  ) async {
+    try {
+      final client = await db;
+      await client.insert('routes', {
+        'oprid': oprid,
+        'route_id': routeId,
+        'timing': timing,
+        'vehicle_id': vehicleId,
+        'route_name': routeName,
+        'type': type,
+        'stop_list': stopList,
+        'stop_details': stopDetails,
       });
-    });
+    } catch (e) {
+      Logger().e('Error inserting route into DB: $e');
+    }
   }
 
   //get all data from routes table

@@ -100,7 +100,7 @@ class ChildrenService {
                     var json = e is String
                         ? jsonDecode(e)
                         : e as Map<String, dynamic>;
-                    json['school_location'] = student['school'];
+                    json['school_location'] = '';
                     return RouteInfo.fromJson(json);
                   }).toList();
                 }
@@ -114,7 +114,7 @@ class ChildrenService {
                 var json = e is String
                     ? jsonDecode(e)
                     : e as Map<String, dynamic>;
-                json['school_location'] = student['school'];
+                json['school_location'] = '';
                 return RouteInfo.fromJson(json);
               }).toList();
             }

@@ -585,95 +585,327 @@ class _HomeScreenState extends State<HomeScreen>
 
   //should be only after the children have been fetched
   Future<void> _fetchRouteStoapge() async {
-    final userId = await SharedPreferenceHelper.getUserNumber();
-    final sessionId = await SharedPreferenceHelper.getUserSessionId();
-    //get tsp id from database
-    final kkmklk = await _sqfliteHelper.getChildTspId();
-    Logger().i('kkmklk: $kkmklk');
-    for (var i in kkmklk) {
-      final tspId = i['tsp_id'];
-      //store multi route_id and oprid
-      List<String> listRouteId = [];
-      List<String> listOprid = [];
-      //run loop for i['routes'] to get oprid and route_id
-      for (var route in i['routes']) {
-        Logger().i('oprid: ${route['oprid']}, route_id: ${route['route_id']}');
-        //store the route_id and oprid
-        listRouteId.add(route['route_id']);
-        listOprid.add(route['oprid']);
-      }
-      //fetch route storage from api
-      ApiManager()
-          .post(
-            'kturoutelistbytsp',
-            data: {'userid': userId, 'sessionid': sessionId, 'tsp_id': tspId},
-          )
-          .then((response) {
-            if (response.statusCode == 200) {
-              Logger().i(response.data);
-              if (response.data[0]['result'] == 'ok') {
-                //my oprid and route_id
-                for (var j = 0; j < listOprid.length; j++) {
-                  Logger().i(
-                    'Matching oprid: ${listOprid[j]}, route_id: ${listRouteId[j]}',
-                  );
-                }
-                // for loop the response.data[1]['data'] to match oprid and route_id
-                for (var route in response.data[1]['data']) {
-                  Logger().i('djgbdssdfdsdfg: $route[oprid] xdgxdfgdxfgdx $route[route_id]');
-                  //now match my oprid and route_id with the route
-                  if (listOprid.contains(route['oprid']) &&
-                      listRouteId.contains(route['route_id'])) {
-                    Logger().i(
-                      'Load the Data oprid: ${route['oprid']}, route_id: ${route['route_id']}',
-                    );
-                  }
+    try {
+      final userId = await SharedPreferenceHelper.getUserNumber();
+      final sessionId = await SharedPreferenceHelper.getUserSessionId();
+      final tspList = await _sqfliteHelper.getChildTspId();
+      Logger().i('Child TSP List: $tspList');
 
-                  // _sqfliteHelper.insertRoute(
-                  //   route['oprid'],
-                  //   route['route_id'],
-                  //   route['timing'],
-                  //   route['vehicle_id'],
-                  //   route['route_name'],
-                  //   route['type'],
-                  //   route['stop_list'],
-                  //   route['stop_details'],
-                  // );
-                  // //print to console
-                  // Logger().i(
-                  //   'Inserted route: oprid=${route['oprid']}, route_id=${route['route_id']}, route_name=${route['route_name']}, type=${route['type']}, timing=${route['timing']}, vehicle_id=${route['vehicle_id']}, stop_list=${route['stop_list']}, stop_details=${route['stop_details']}',
-                  // );
-                }
-                // if (response.data[1]['data'] != null) {
-                //   //save to database insertRoute
-                //   for (var routes in response.data[1]['data']) {
-                //     //match oprid and route_id before insert
-                //     if (routes['oprid'] != route['oprid'] ||
-                //         routes['route_id'] != route['route_id']) {
-                //       continue;
-                //     }
-                //     _sqfliteHelper.insertRoute(
-                //       routes['oprid'],
-                //       routes['route_id'],
-                //       routes['timing'],
-                //       routes['vehicle_id'],
-                //       routes['route_name'],
-                //       routes['type'],
-                //       routes['stop_list'],
-                //       routes['stop_details'],
-                //     );
-                //     //print to console
-                //     Logger().i(
-                //       'Inserted route: oprid=${routes['oprid']}, route_id=${routes['route_id']}, route_name=${routes['route_name']}, type=${routes['type']}, timing=${routes['timing']}, vehicle_id=${routes['vehicle_id']}, stop_list=${routes['stop_list']}, stop_details=${routes['stop_details']}',
-                //     );
-                //   }
-                // }
-              }
-            }
-          })
-          .catchError((error) {
-            Logger().e('Error fetching route storage for tspId $tspId: $error');
-          });
+      for (var tsp in tspList) {
+        final tspId = tsp['tsp_id'];
+
+        /// Extract oprid + route_id pairs from local DB
+        final routeIds = <String>{};
+        final oprIds = <String>{};
+        _extractLocalRoutePairs(tsp['routes'], routeIds, oprIds);
+
+        /// Fetch Remote Route List From API
+        await _fetchAndProcessTspRoute(
+          tspId: tspId,
+          userId: userId,
+          sessionId: sessionId,
+          routeIds: routeIds,
+          oprIds: oprIds,
+        );
+      }
+    } catch (e) {
+      Logger().e('Error fetching route storage: $e');
     }
   }
+  //
+  Future<void> _fetchAndProcessTspRoute({
+    required String tspId,
+    required String? userId,
+    required String? sessionId,
+    required Set<String> routeIds,
+    required Set<String> oprIds,
+  }) async {
+    try {
+      final response = await ApiManager().post(
+        'kturoutelistbytsp',
+        data: {'userid': userId, 'sessionid': sessionId, 'tsp_id': tspId},
+      );
+
+      if (response.statusCode != 200 || response.data[0]['result'] != 'ok') {
+        Logger().w('Invalid response for tspId: $tspId');
+        return;
+      }
+
+      final apiRoutes = response.data[1]['data'];
+
+      for (var route in apiRoutes) {
+        final oprid = route['oprid'];
+        final routeId = route['route_id'];
+
+        Logger().i("API Route → oprid: $oprid | route_id: $routeId");
+
+        /// Only insert & update matching oprid + route_id
+        final isMatch = oprIds.contains(oprid) && routeIds.contains(routeId);
+
+        if (isMatch) {
+          Logger().i("MATCHED → Saving oprid: $oprid | route_id: $routeId");
+          await _saveRouteToDatabase(route);
+          await _updateChildrenRouteInfo(route);
+        } else {
+          Logger().i("SKIPPED → oprid: $oprid | route_id: $routeId");
+        }
+      }
+    } catch (e) {
+      Logger().e('Error fetching route storage for tspId $tspId: $e');
+    }
+  }
+  //
+  Future<void> _updateChildrenRouteInfo(Map<String, dynamic> route) async {
+    final childrenList = await _sqfliteHelper.getChildren();
+
+    for (var child in childrenList) {
+      try {
+        final studentId = child['student_id'] as String?;
+        final routeInfoRaw = child['route_info'] as String?;
+        final tspIdRaw = child['tsp_id'] as String?;
+
+        if (studentId == null || routeInfoRaw == null || tspIdRaw == null) {
+          continue;
+        }
+
+        /// Ensure the child belongs to this oprid
+        final tspIdList = List<String>.from(jsonDecode(tspIdRaw));
+        if (!tspIdList.contains(route['oprid'].toString())) continue;
+
+        /// Decode route info
+        final decoded = jsonDecode(routeInfoRaw);
+        final List<RouteInfo> routeInfos = decoded
+            .map<RouteInfo>((e) => RouteInfo.fromJson(e is String ? jsonDecode(e) : e))
+            .toList();
+
+        bool updated = false;
+
+        for (var info in routeInfos) {
+          if (info.oprId == route['oprid'].toString() &&
+              info.routeId == route['route_id'].toString()) {
+                String? lastStopLocation = _extractLastStopLocation(route['stop_list']);
+            final updatedInfo = RouteInfo(
+              routeId: info.routeId,
+              routeName: info.routeName,
+              routeType: info.routeType,
+              startTime: route['timing'],
+              stopArrivalTime: info.stopArrivalTime,
+              stopName: info.stopName,
+              stopLocation: info.stopLocation,
+              //"stop_list": "[{\"stop_id\":\"1\",\"stop_name\":\"Mumbai\",\"location\":\"18.9581934,72.8320729\",\"stop_type\":1},{\"stop_id\":\"2\",\"stop_name\":\"Goa\",\"location\":\"15.30106506,74.13523982\",\"stop_type\":3}]"
+              //get the last stop location from stop_list
+              schoolLocation: lastStopLocation ?? '',
+              oprId: info.oprId,
+              vehicleId: info.vehicleId,
+              stopId: info.stopId,
+            );
+
+            routeInfos[routeInfos.indexOf(info)] = updatedInfo;
+            updated = true;
+            break;
+          }
+        }
+
+        if (updated) {
+          final updatedJson = jsonEncode(routeInfos.map((e) => e.toJson()).toList());
+          await _sqfliteHelper.updateRouteInfoByStudentId(studentId, updatedJson);
+
+          Logger().i('Updated child route_info → studentId: $studentId');
+        }
+      } catch (e) {
+        Logger().e('Error updating child route_info: $e');
+      }
+    }
+  }
+  //
+  String? _extractLastStopLocation(String stopListJson) {
+    try {
+      final List<dynamic> stopsData = jsonDecode(stopListJson);
+      if (stopsData.isNotEmpty) {
+        final lastStop = stopsData.last as Map<String, dynamic>;
+        return lastStop['location'] as String?;
+      }
+    } catch (e) {
+      Logger().e('Error extracting last stop location: $e');
+    }
+    return null;
+  }
+  //
+  Future<void> _saveRouteToDatabase(Map<String, dynamic> route) async {
+    await _sqfliteHelper.insertRoute(
+      route['oprid'],
+      route['route_id'],
+      route['timing'],
+      route['vehicle_id'],
+      route['route_name'],
+      route['type'],
+      route['stop_list'],
+      route['stop_details'],
+    );
+
+    Logger().i('Inserted Route → ${route['route_id']} | oprid: ${route['oprid']}');
+  }
+  //
+  void _extractLocalRoutePairs(List<dynamic> routes, Set<String> routeIds, Set<String> oprIds) {
+    for (var route in routes) {
+      routeIds.add(route['route_id']);
+      oprIds.add(route['oprid']);
+      Logger().i('Local route → oprid: ${route['oprid']} | route_id: ${route['route_id']}');
+    }
+  }
+
+  //     //run loop for i['routes'] to get oprid and route_id
+  //     for (var route in i['routes']) {
+  //       Logger().i('oprid: ${route['oprid']}, route_id: ${route['route_id']}');
+  //       //store the route_id and oprid
+  //       listRouteId.add(route['route_id']);
+  //       listOprid.add(route['oprid']);
+  //     }
+  //     //fetch route storage from api
+  //     ApiManager()
+  //         .post(
+  //           'kturoutelistbytsp',
+  //           data: {'userid': userId, 'sessionid': sessionId, 'tsp_id': tspId},
+  //         )
+  //         .then((response) {
+  //           if (response.statusCode == 200) {
+  //             Logger().i(response.data);
+  //             if (response.data[0]['result'] == 'ok') {
+  //               //my oprid and route_id
+  //               for (var j = 0; j < listOprid.length; j++) {
+  //                 Logger().i(
+  //                   'Matching oprid: ${listOprid[j]}, route_id: ${listRouteId[j]}',
+  //                   /* output
+  //                   Matching oprid: 1, route_id: OD94689000001
+  //                   */
+  //                 );
+  //               }
+  //               // for loop the response.data[1]['data'] to match oprid and route_id
+  //               for (var route in response.data[1]['data']) {
+  //                 Logger().i('djgbdssdfdsdfg: ${route['oprid']} xdgxdfgdxfgdx ${route['route_id']}');
+
+  //                 //now match my oprid and route_id with the route['oprid'] and route['route_id']
+  //                  if (listOprid.contains(route['oprid']) &&
+  //                     listRouteId.contains(route['route_id'])) {
+  //                   Logger().i(
+  //                     'Load the Data oprid: ${route['oprid']}, route_id: ${route['route_id']}',
+  //                   );
+  //                   //save to database insertRoute
+  //                   _sqfliteHelper.insertRoute(
+  //                     route['oprid'],
+  //                     route['route_id'],
+  //                     route['timing'],
+  //                     route['vehicle_id'],
+  //                     route['route_name'],
+  //                     route['type'],
+  //                     route['stop_list'],
+  //                     route['stop_details'],
+  //                   );
+
+  //                   // Update route_info's school_location and start_time fields from route data for matching children
+  //                   final childrenList = await _sqfliteHelper.getChildren();
+  //                   for (var childMap in childrenList) {
+  //                     try {
+  //                       final studentId = childMap['student_id'] as String?;
+  //                       final tspIdRaw = childMap['tsp_id'] as String?;
+  //                       final routeInfoRaw = childMap['route_info'] as String?;
+  //                       if (studentId == null || tspIdRaw == null || routeInfoRaw == null) {
+  //                         continue;
+  //                       }
+  //                       final List<dynamic> tspIdList = jsonDecode(tspIdRaw);
+  //                       if (!tspIdList.contains(route['oprid'].toString())) {
+  //                         continue; // skip if child's tsp_id list does not contain this oprid
+  //                       }
+  //                       // Decode routeInfo list
+  //                       List<dynamic> routeInfoListRaw = jsonDecode(routeInfoRaw);
+  //                       List<RouteInfo> routeInfoList = routeInfoListRaw
+  //                           .map<RouteInfo>((e) => RouteInfo.fromJson(e is String ? jsonDecode(e) : e))
+  //                           .toList();
+
+  //                       bool updated = false;
+  //                       for (var routeInfo in routeInfoList) {
+  //                         if (routeInfo.oprId == route['oprid'].toString() &&
+  //                             routeInfo.routeId == route['route_id'].toString()) {
+  //                           routeInfoList[routeInfoList.indexOf(routeInfo)] = RouteInfo(
+  //                             routeId: routeInfo.routeId,
+  //                             routeName: routeInfo.routeName,
+  //                             routeType: routeInfo.routeType,
+  //                             startTime: route['timing'].toString(),
+  //                             stopArrivalTime: routeInfo.stopArrivalTime,
+  //                             stopName: routeInfo.stopName,
+  //                             stopLocation: routeInfo.stopLocation,
+  //                             schoolLocation: route['stop_details'].toString(),
+  //                             oprId: routeInfo.oprId,
+  //                             vehicleId: routeInfo.vehicleId,
+  //                             stopId: routeInfo.stopId,
+  //                           );
+  //                           updated = true;
+  //                           break;
+  //                         }
+  //                       }
+  //                       if (updated) {
+  //                         final String updatedRouteInfoStr =
+  //                             jsonEncode(routeInfoList.map((e) => e.toJson()).toList());
+  //                         await _sqfliteHelper.updateRouteInfoByStudentId(studentId, updatedRouteInfoStr);
+  //                         Logger().i('Updated route_info school_location and start_time for studentId: $studentId');
+  //                       }
+  //                     } catch (e) {
+  //                       Logger().e('Error updating route_info fields for route ${route['route_id']}: $e');
+  //                     }
+  //                   }
+
+
+  //                 } else {
+  //                   Logger().i(
+  //                     'Skip the Data oprid: ${route['oprid']}, route_id: ${route['route_id']}',
+  //                   );
+  //                 }
+
+  //                 // _sqfliteHelper.insertRoute(
+  //                 //   route['oprid'],
+  //                 //   route['route_id'],
+  //                 //   route['timing'],
+  //                 //   route['vehicle_id'],
+  //                 //   route['route_name'],
+  //                 //   route['type'],
+  //                 //   route['stop_list'],
+  //                 //   route['stop_details'],
+  //                 // );
+  //                 // //print to console
+  //                 // Logger().i(
+  //                 //   'Inserted route: oprid=${route['oprid']}, route_id=${route['route_id']}, route_name=${route['route_name']}, type=${route['type']}, timing=${route['timing']}, vehicle_id=${route['vehicle_id']}, stop_list=${route['stop_list']}, stop_details=${route['stop_details']}',
+  //                 // );
+  //               }
+  //               // if (response.data[1]['data'] != null) {
+  //               //   //save to database insertRoute
+  //               //   for (var routes in response.data[1]['data']) {
+  //               //     //match oprid and route_id before insert
+  //               //     if (routes['oprid'] != route['oprid'] ||
+  //               //         routes['route_id'] != route['route_id']) {
+  //               //       continue;
+  //               //     }
+  //               //     _sqfliteHelper.insertRoute(
+  //               //       routes['oprid'],
+  //               //       routes['route_id'],
+  //               //       routes['timing'],
+  //               //       routes['vehicle_id'],
+  //               //       routes['route_name'],
+  //               //       routes['type'],
+  //               //       routes['stop_list'],
+  //               //       routes['stop_details'],
+  //               //     );
+  //               //     //print to console
+  //               //     Logger().i(
+  //               //       'Inserted route: oprid=${routes['oprid']}, route_id=${routes['route_id']}, route_name=${routes['route_name']}, type=${routes['type']}, timing=${routes['timing']}, vehicle_id=${routes['vehicle_id']}, stop_list=${routes['stop_list']}, stop_details=${routes['stop_details']}',
+  //               //     );
+  //               //   }
+  //               // }
+  //             }
+  //           }
+  //         })
+  //         .catchError((error) {
+  //           Logger().e('Error fetching route storage for tspId $tspId: $error');
+  //         });
+  //   }
+  // }
 }
