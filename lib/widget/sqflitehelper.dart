@@ -323,6 +323,76 @@ class SqfliteHelper {
     );
   }
 
+  //update only school_location and start_time in route_info of child base on tsp_id and route_id
+  Future<void> updateChildRouteInfo(
+    String studentId,
+    String tspId,
+    String routeId,
+    String startTime,
+    String schoolLocation,
+  ) async {
+    try {
+      final dbClient = await db;
+      // First, get the current child data
+      final results = await dbClient.query(
+        'child',
+        where: 'student_id = ?',
+        whereArgs: [studentId],
+      );
+      if (results.isEmpty) {
+        Logger().w('No child found with student_id: $studentId');
+        return;
+      }
+      final childData = results.first;
+      final tspIdRaw = childData['tsp_id'] as String?;
+      final routeInfoRaw = childData['route_info'] as String?;
+      if (tspIdRaw == null || routeInfoRaw == null) {
+        Logger().w('tsp_id or route_info is null for student_id: $studentId');
+        return;
+      }
+      // Check if tspId is in tsp_id list
+      final List<dynamic> tspList = jsonDecode(tspIdRaw);
+      if (!tspList.contains(tspId)) {
+        Logger().w(
+          'tspId $tspId not found in tsp_id for student_id: $studentId',
+        );
+        return;
+      }
+      // Decode route_info
+      final List<dynamic> routeList = jsonDecode(routeInfoRaw);
+      // Find and update the route
+      bool updated = false;
+      for (var route in routeList) {
+        if (route['route_id'] == routeId) {
+          route['start_time'] = startTime;
+          route['school_location'] = schoolLocation;
+          updated = true;
+          break;
+        }
+      }
+      if (!updated) {
+        Logger().w('Route with route_id $routeId not found in route_info');
+        return;
+      }
+      // Encode back to JSON
+      final updatedRouteInfo = jsonEncode(routeList);
+      // Update the database
+      final affectedRows = await dbClient.update(
+        'child',
+        {'route_info': updatedRouteInfo},
+        where: 'student_id = ?',
+        whereArgs: [studentId],
+      );
+      if (affectedRows > 0) {
+        Logger().i('Route info updated successfully.');
+      } else {
+        Logger().w('No rows were updated.');
+      }
+    } catch (e) {
+      Logger().e('Error updating route info: $e');
+    }
+  }
+
   //delete the single route from route_info of child base on student_id and opr_id
   Future<int> deleteRouteInfoByStudentIdAndOprId(
     String studentId,
@@ -409,13 +479,13 @@ class SqfliteHelper {
 
   //insert route
   Future<void> insertRoute(
-    String oprid,
+    int oprid,
     String routeId,
     String timing,
     String vehicleId,
     String routeName,
-    String type,
-    List stopList,
+    int type,
+    String stopList,
     String stopDetails,
   ) async {
     try {

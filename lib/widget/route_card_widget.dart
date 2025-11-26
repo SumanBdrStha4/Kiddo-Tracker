@@ -313,15 +313,14 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                                 color: Colors.grey,
                               ),
                             ),
-                            if (widget.routes.first.schoolLocation.isNotEmpty)
-                              Text(
-                                'School: ${widget.routes.first.schoolLocation}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey,
-                                ),
+                            Text(
+                              'School: ${widget.routes.first.schoolLocation}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey,
                               ),
+                            ),
                           ],
                         ),
                       ),
