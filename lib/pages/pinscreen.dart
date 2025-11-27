@@ -8,7 +8,7 @@ import '../routes/routes.dart';
 import '../services/children_service.dart';
 
 class PINScreen extends StatefulWidget {
-  PINScreen({super.key});
+  const PINScreen({super.key});
 
   @override
   State<PINScreen> createState() => _PINScreenState();

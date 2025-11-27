@@ -10,7 +10,7 @@ import 'package:table_calendar/table_calendar.dart';
 class RequestLeaveScreen extends StatefulWidget {
   final Map<String, dynamic> child;
 
-  const RequestLeaveScreen({Key? key, required this.child}) : super(key: key);
+  const RequestLeaveScreen({super.key, required this.child});
 
   @override
   _RequestLeaveScreenState createState() => _RequestLeaveScreenState();

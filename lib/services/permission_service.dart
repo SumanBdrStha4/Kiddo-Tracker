@@ -30,4 +30,19 @@ class PermissionService {
       // Permission permanently denied
     }
   }
+
+  static Future<void> requestExactAlarmPermission() async {
+    if (await Permission.scheduleExactAlarm.isGranted) {
+      return;
+    }
+
+    final status = await Permission.scheduleExactAlarm.request();
+    if (status.isGranted) {
+      // Permission granted
+    } else if (status.isDenied) {
+      // Permission denied
+    } else if (status.isPermanentlyDenied) {
+      // Permission permanently denied
+    }
+  }
 }

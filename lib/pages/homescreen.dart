@@ -21,6 +21,8 @@ import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 
+import '../services/workmanager_callback.dart';
+
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNewMessage;
 
@@ -44,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen>
   final Completer<MQTTService> _mqttCompleter = Completer<MQTTService>();
 
   Map<String, bool> activeRoutes = {};
+  List<String> stopArrivalTimes = [];
   int _boardRefreshKey = 0;
   late StreamSubscription<String> _streamSubscription;
 
@@ -75,9 +78,21 @@ class _HomeScreenState extends State<HomeScreen>
     await _mqttCompleter.future;
     await _subscribeToTopics();
     await _fetchRouteStoapge();
-    // await Workmanager().registerPeriodicTask("fetchChildrenTask", "fetchChildren", frequency: Duration(minutes: 15));
-    // // Register a one-off task to test the callback immediately
-    // await Workmanager().registerOneOffTask("fetchChildrenOneOff", "fetchChildren", initialDelay: Duration(seconds: 30));
+    //print the stopArrivalTimes list
+    Logger().i('Stop Arrival Times: $stopArrivalTimes');
+    stopArrivalTimes.sort(); // Sort the list in ascending order
+    //get the earliest time
+    final earliestTime = stopArrivalTimes.first;
+    Logger().i('Earliest Stop Arrival Time: $earliestTime');
+    //split the earliest time into hour and minute
+    final timeParts = earliestTime.split(':');
+    final hour = int.parse(timeParts[0]);
+    final minute = int.parse(timeParts[1]);
+    // Store the earliest route hour and minute in shared preferences
+    await SharedPreferenceHelper.setEarliestRouteHour(hour);
+    await SharedPreferenceHelper.setEarliestRouteMinute(minute);
+    await scheduleDailyDataLoad(hour, minute);
+    // await scheduleDailyDataLoad(15, 40);
   }
 
   Future<void> _subscribeToTopics() async {
@@ -199,6 +214,19 @@ class _HomeScreenState extends State<HomeScreen>
         _isLoading = false;
       });
       Logger().e('Error fetching children from DB: $e');
+    }
+    // Populate stop arrival times
+    stopArrivalTimes.clear();
+    final children = Provider.of<ChildrenProvider>(
+      context,
+      listen: false,
+    ).children;
+    for (var child in children) {
+      for (var route in child.routeInfo) {
+        if (route.stopArrivalTime.isNotEmpty) {
+          stopArrivalTimes.add(route.stopArrivalTime);
+        }
+      }
     }
   }
 
@@ -435,6 +463,7 @@ class _HomeScreenState extends State<HomeScreen>
         vehicleId,
       );
       Logger().i(responseRouteDetail);
+      //[{result: ok}, {data: [{vehicle_id: OD946890001, vehicle_name: Marcopolo XL, reg_no: OD11Z5898, type: BUS, capacity: 50, driver_name: Mr. Driver, assistant_name: Mr. Assistant, contact1: 8093705005, contact2: 8093705005}]}]
 
       final responseLocation = await ApiService.fetchOperationStatus(
         userId,
@@ -442,6 +471,7 @@ class _HomeScreenState extends State<HomeScreen>
         sessionId,
       );
       Logger().i(responseLocation);
+      //[{result: ok}, {data: [{operation_status: 0, current_location: , stop_details: [{"1":["Mumbai","08:00","08:30","18.9581934,72.8320729"]},{"2":["Goa","10:00","10:00","15.30106506,74.13523982"]}]}]}]
 
       //get stop_list from database
       final sqliteStopList = await _sqfliteHelper.getStopListByOprIdAndRouteId(
@@ -449,38 +479,74 @@ class _HomeScreenState extends State<HomeScreen>
         routeId,
       );
       Logger().i('sqliteStopList: $sqliteStopList');
+      //sqliteStopList: [{stop_list: [{"stop_id":"1","stop_name":"Mumbai","location":"18.9581934,72.8320729","stop_type":1},{"stop_id":"2","stop_name":"Goa","location":"15.30106506,74.13523982","stop_type":3}]}]
 
       final stopList = await _sqfliteHelper.getStopListByOprIdAndRouteId(
         oprId,
         routeId,
       );
       Logger().i('oprId: $oprId, routeId: $routeId, stopList: $stopList');
-      //data of stop_list
+      //oprId: 1, routeId: OD94689000001, stopList: [{stop_list: [{"stop_id":"1","stop_name":"Mumbai","location":"18.9581934,72.8320729","stop_type":1},{"stop_id":"2","stop_name":"Goa","location":"15.30106506,74.13523982","stop_type":3}]}]
+
+      //now get responseRouteDetail vechile data driver_name and contact1 and contact2
+
+      //get the driver_name and contact1 and contact2 from responseRouteDetail
+      String driverName = '';
+      String contact1 = '';
+      String contact2 = '';
+
+      if (responseRouteDetail.data.isNotEmpty &&
+          responseRouteDetail.data[0]['result'] == 'ok' &&
+          responseRouteDetail.data.length > 1) {
+        final vehicleData = responseRouteDetail.data[1]['data'];
+        if (vehicleData is List && vehicleData.isNotEmpty) {
+          final vehicleInfo = vehicleData[0];
+          driverName = vehicleInfo['driver_name'] ?? '';
+          contact1 = vehicleInfo['contact1'] ?? '';
+          contact2 = vehicleInfo['contact2'] ?? '';
+        }
+      }
       //use stopList and show the stop_name and location in a list
       final stopListMap = stopList.toList();
       Logger().i('stopListMap: $stopListMap');
-
-      //open a  dialog and show the listed location in google map.
-      // Parse stop_list data and show in dialog
-      if (stopListMap.isNotEmpty && stopListMap[0]['stop_list'] != null) {
+      //stopListMap: [{stop_list: [{"stop_id":"1","stop_name":"Mumbai","location":"18.9581934,72.8320729","stop_type":1},{"stop_id":"2","stop_name":"Goa","location":"15.30106506,74.13523982","stop_type":3}]}]
+      //get the stop Name and location
+      if (stopListMap.isNotEmpty) {
+        Logger().i('stop_list: ${stopListMap[0]['stop_list']}');
         final stopListJson = stopListMap[0]['stop_list'];
         if (stopListJson is String && stopListJson.isNotEmpty) {
+          //get the stop_name and location from stopListJson
           try {
             final List<dynamic> stopsData = jsonDecode(stopListJson);
-            final List<StopLocation> stopLocations = stopsData.map((stopData) {
-              return StopLocation.fromJson(stopData as Map<String, dynamic>);
-            }).toList();
+            //get 'stop_name' and 'location' from stopsData
+            //list to add stop_name and location
 
-            final routeName = routes.first.routeName ?? 'Route $routeId';
-
-            // Show the stop locations dialog
-            showDialog(
-              context: context,
-              builder: (context) => StopLocationsDialog(
-                stopLocations: stopLocations,
-                routeName: routeName,
-              ),
+            //initiialize stoplocation
+            StopLocation stopLocation = StopLocation(
+              stopId: '',
+              stopName: '',
+              location: '',
             );
+
+            // List<Map<String, String>> stopLocations = [];
+            //store the stop_name and location in a list
+            for (var stopData in stopsData) {
+              Logger().i(
+                'stop_name: ${stopData['stop_name']}, location: ${stopData['location']}',
+              );
+              stopLocation = StopLocation(
+                stopId: stopData['stop_id'],
+                stopName: stopData['stop_name'],
+                location: stopData['location'],
+              );
+              // stopLocations.add({
+              //   'stop_name': stopData['stop_name'],
+              //   'location': stopData['location'],
+              // });
+            }
+            //show the stopLocations in a dialog
+            // _showStopLocationsDialog(stopLocations, driverName, contact1, contact2);
+            StopLocationsDialog(stopLocation, driverName, contact1, contact2);
           } catch (e) {
             Logger().e('Error parsing stop_list JSON: $e');
             ScaffoldMessenger.of(context).showSnackBar(
@@ -489,12 +555,43 @@ class _HomeScreenState extends State<HomeScreen>
           }
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No stop locations available for this route'),
-          ),
-        );
+        Logger().i('No stop_list found for oprId: $oprId, routeId: $routeId');
       }
+      //open a  dialog and show the listed location in google map.
+      // Parse stop_list data and show in dialog
+      // if (stopListMap.isNotEmpty && stopListMap[0]['stop_list'] != null) {
+      //   final stopListJson = stopListMap[0]['stop_list'];
+      //   if (stopListJson is String && stopListJson.isNotEmpty) {
+      //     try {
+      //       final List<dynamic> stopsData = jsonDecode(stopListJson);
+      //       final List<StopLocation> stopLocations = stopsData.map((stopData) {
+      //         return StopLocation.fromJson(stopData as Map<String, dynamic>);
+      //       }).toList();
+
+      //       final routeName = routes.first.routeName ?? 'Route $routeId';
+
+      //       // Show the stop locations dialog
+      //       showDialog(
+      //         context: context,
+      //         builder: (context) => StopLocationsDialog(
+      //           stopLocations: stopLocations,
+      //           routeName: routeName,
+      //         ),
+      //       );
+      //     } catch (e) {
+      //       Logger().e('Error parsing stop_list JSON: $e');
+      //       ScaffoldMessenger.of(context).showSnackBar(
+      //         const SnackBar(content: Text('Error loading stop locations')),
+      //       );
+      //     }
+      //   }
+      // } else {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(
+      //       content: Text('No stop locations available for this route'),
+      //     ),
+      //   );
+      // }
 
       // final map = extractLocationAndRouteData(
       //   responseLocation,
@@ -507,6 +604,14 @@ class _HomeScreenState extends State<HomeScreen>
       Logger().e('Error fetching location and route details: $e');
     }
   }
+
+  // void _showStopLocationsDialog(StopLocation stopLocations, String driverName, String contact1, String contact2) {
+  //   // in this dialog show a map with all the stop locations marked and below the map show the driver name and contact details
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => StopLocationsDialog(stopLocations, driverName, contact1, contact2),
+  //   );
+  // }
 
   _onDeleteTap(String routeId, List<RouteInfo> routes, String studentId) async {
     //userId

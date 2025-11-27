@@ -57,16 +57,16 @@ class SharedPreferenceHelper {
   }
 
   // session expiry
-  static Future<void> setSessionExpiry(DateTime value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("sessionExpiry", value.toIso8601String());
-  }
+  // static Future<void> setSessionExpiry(DateTime value) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   await prefs.setString("sessionExpiry", value.toIso8601String());
+  // }
 
-  static Future<DateTime?> getSessionExpiry() async {
-    final prefs = await SharedPreferences.getInstance();
-    final string = prefs.getString("sessionExpiry");
-    return string != null ? DateTime.parse(string) : null;
-  }
+  // static Future<DateTime?> getSessionExpiry() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final string = prefs.getString("sessionExpiry");
+  //   return string != null ? DateTime.parse(string) : null;
+  // }
 
   static Future<void> clearAllExceptNumberAndLogin() async {
     final prefs = await SharedPreferences.getInstance();

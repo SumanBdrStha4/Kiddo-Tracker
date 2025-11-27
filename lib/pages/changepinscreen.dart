@@ -5,7 +5,7 @@ import 'package:kiddo_tracker/api/apimanage.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 
 class ChangePinScreen extends StatefulWidget {
-  const ChangePinScreen({Key? key}) : super(key: key);
+  const ChangePinScreen({super.key});
 
   @override
   State<ChangePinScreen> createState() => _ChangePinScreenState();

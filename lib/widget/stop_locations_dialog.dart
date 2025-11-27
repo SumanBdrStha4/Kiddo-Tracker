@@ -6,13 +6,11 @@ class StopLocation {
   final String stopId;
   final String stopName;
   final String location;
-  final int stopType;
 
   StopLocation({
     required this.stopId,
     required this.stopName,
     required this.location,
-    required this.stopType,
   });
 
   factory StopLocation.fromJson(Map<String, dynamic> json) {
@@ -20,7 +18,6 @@ class StopLocation {
       stopId: json['stop_id'] ?? '',
       stopName: json['stop_name'] ?? '',
       location: json['location'] ?? '',
-      stopType: json['stop_type'] ?? 0,
     );
   }
 
@@ -37,13 +34,17 @@ class StopLocation {
 }
 
 class StopLocationsDialog extends StatefulWidget {
-  final List<StopLocation> stopLocations;
-  final String routeName;
+  final StopLocation stopLocation;
+  final String driver;
+  final String contact1;
+  final String contact2;
 
-  const StopLocationsDialog({
+  const StopLocationsDialog(
+    this.stopLocation,
+    this.driver,
+    this.contact1,
+    this.contact2, {
     super.key,
-    required this.stopLocations,
-    required this.routeName,
   });
 
   @override
@@ -60,39 +61,43 @@ class _StopLocationsDialogState extends State<StopLocationsDialog> {
   @override
   void initState() {
     super.initState();
+    _selectedStop = widget.stopLocation;
     _createMarkers();
   }
 
   void _createMarkers() {
-    _markers = widget.stopLocations.map((stop) {
-      final latLng = stop.latLng;
-      return Marker(
-        markerId: MarkerId(stop.stopId),
+    final latLng = widget.stopLocation.latLng;
+    _markers = {
+      Marker(
+        markerId: MarkerId(widget.stopLocation.stopId),
         position: latLng,
         infoWindow: InfoWindow(
-          title: stop.stopName,
-          snippet: 'Stop ID: ${stop.stopId}',
+          title: widget.stopLocation.stopName,
+          snippet: 'Stop ID: ${widget.stopLocation.stopId}',
         ),
         onTap: () {
           setState(() {
-            _selectedStop = stop;
+            _selectedStop = widget.stopLocation;
           });
           _mapController.animateCamera(CameraUpdate.newLatLngZoom(latLng, 16));
         },
-      );
-    }).toSet();
+      ),
+    };
   }
 
   Future<void> _openInGoogleMaps(StopLocation stop) async {
     final latLng = stop.latLng;
-    final url = 'https://www.google.com/maps/search/?api=1&query=${latLng.latitude},${latLng.longitude}';
+    final url =
+        'https://www.google.com/maps/search/?api=1&query=${latLng.latitude},${latLng.longitude}';
 
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open Google Maps for ${stop.stopName}')),
+          SnackBar(
+            content: Text('Could not open Google Maps for ${stop.stopName}'),
+          ),
         );
       }
     }
@@ -101,7 +106,7 @@ class _StopLocationsDialogState extends State<StopLocationsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Route Stops - ${widget.routeName}'),
+      title: Text('Stop Location - ${widget.stopLocation.stopName}'),
       content: SizedBox(
         width: double.infinity,
         height: MediaQuery.of(context).size.height * 0.9,
@@ -123,68 +128,64 @@ class _StopLocationsDialogState extends State<StopLocationsDialog> {
                       ),
                     )
                   : _mapError != null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.map_outlined,
-                                size: 64,
-                                color: Colors.grey,
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Map Error',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                _mapError!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                              SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _isMapLoading = true;
-                                    _mapError = null;
-                                  });
-                                },
-                                child: Text('Retry'),
-                              ),
-                            ],
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.map_outlined,
+                            size: 64,
+                            color: Colors.grey,
                           ),
-                        )
-                      : GoogleMap(
-                          initialCameraPosition: CameraPosition(
-                            target: widget.stopLocations.isNotEmpty
-                                ? widget.stopLocations.first.latLng
-                                : const LatLng(20.272470745, 85.783748278),
-                            zoom: 13,
+                          SizedBox(height: 16),
+                          Text(
+                            'Map Error',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
                           ),
-                          markers: _markers,
-                          onMapCreated: (controller) {
-                            setState(() {
-                              _isMapLoading = false;
-                            });
-                            _mapController = controller;
-                            if (widget.stopLocations.isNotEmpty) {
-                              Future.delayed(const Duration(milliseconds: 500), () {
-                                _mapController.showMarkerInfoWindow(
-                                  MarkerId(widget.stopLocations.first.stopId),
-                                );
+                          SizedBox(height: 8),
+                          Text(
+                            _mapError!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _isMapLoading = true;
+                                _mapError = null;
                               });
-                            }
-                          },
-                          zoomControlsEnabled: true,
-                          myLocationButtonEnabled: false,
-                          mapType: MapType.normal,
-                        ),
+                            },
+                            child: Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : GoogleMap(
+                      initialCameraPosition: CameraPosition(
+                        target: widget.stopLocation.latLng,
+                        zoom: 13,
+                      ),
+                      markers: _markers,
+                      onMapCreated: (controller) {
+                        setState(() {
+                          _isMapLoading = false;
+                        });
+                        _mapController = controller;
+                        Future.delayed(const Duration(milliseconds: 500), () {
+                          _mapController.showMarkerInfoWindow(
+                            MarkerId(widget.stopLocation.stopId),
+                          );
+                        });
+                      },
+                      zoomControlsEnabled: true,
+                      myLocationButtonEnabled: false,
+                      mapType: MapType.normal,
+                    ),
             ),
             const SizedBox(height: 12),
 
@@ -209,52 +210,26 @@ class _StopLocationsDialogState extends State<StopLocationsDialog> {
                     const SizedBox(height: 4),
                     Text('Location: ${_selectedStop!.location}'),
                     Text('Stop ID: ${_selectedStop!.stopId}'),
-                    Text('Type: ${_selectedStop!.stopType}'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text('Driver: ${widget.driver}'),
+                        const SizedBox(width: 16),
+                        Text('Contact 1: ${widget.contact1}'),
+                        const SizedBox(width: 16),
+                        Text('Contact 2: ${widget.contact2}'),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => _openInGoogleMaps(_selectedStop!),
+                      icon: const Icon(Icons.map),
+                      label: const Text('Open in Google Maps'),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
             ],
-
-            // Stops List
-            // Expanded(
-            //   child: ListView.builder(
-            //     itemCount: widget.stopLocations.length,
-            //     itemBuilder: (context, index) {
-            //       final stop = widget.stopLocations[index];
-            //       final isSelected = _selectedStop?.stopId == stop.stopId;
-
-            //       return Card(
-            //         color: isSelected ? Colors.blue.shade50 : null,
-            //         child: ListTile(
-            //           title: Text(
-            //             stop.stopName,
-            //             style: TextStyle(
-            //               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            //             ),
-            //           ),
-            //           subtitle: Text(
-            //             'Location: ${stop.location}\nStop ID: ${stop.stopId} | Type: ${stop.stopType}',
-            //           ),
-            //           trailing: IconButton(
-            //             icon: const Icon(Icons.map),
-            //             onPressed: () => _openInGoogleMaps(stop),
-            //             tooltip: 'Open in Google Maps',
-            //           ),
-            //           onTap: () {
-            //             setState(() {
-            //               _selectedStop = stop;
-            //             });
-            //             _mapController.animateCamera(
-            //               CameraUpdate.newLatLngZoom(stop.latLng, 16),
-            // _mapController.showMarkerInfoWindow(MarkerId(stop.stopId));
-            //             );
-            //           },
-            //         ),
-            //       );
-            //     },
-            //   ),
-            // ),
           ],
         ),
       ),

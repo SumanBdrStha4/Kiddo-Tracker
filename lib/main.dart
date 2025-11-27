@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
-import 'package:kiddo_tracker/services/children_service.dart';
 import 'package:kiddo_tracker/services/notification_service.dart';
 import 'package:kiddo_tracker/services/workmanager_callback.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
@@ -11,17 +10,26 @@ import 'package:kiddo_tracker/pages/pinscreen.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:workmanager/workmanager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize Workmanager
-  await Workmanager().initialize(callbackDispatcher);
+  // Initialize AndroidAlarmManager
+  await AndroidAlarmManager.initialize();
   // Initialize notifications
   await NotificationService.initialize();
-
+  //workManager
+  Workmanager().initialize(workmanagerDispatcher, isInDebugMode: false);
+  // Runs once every 24 hours to reset the alarm
+  Workmanager().registerPeriodicTask(
+    "reset_daily_alarm",
+    "reset_daily_alarm",
+    frequency: const Duration(hours: 24),
+    constraints: Constraints(networkType: NetworkType.connected),
+  );
   // Schedule daily data load
-  await scheduleDailyDataLoad();
+  // await scheduleDailyDataLoad(15, 36);
 
   // Load environment variables with error handling
   try {
@@ -64,7 +72,10 @@ class _MainAppState extends State<MainApp> {
     final sessionId = await SharedPreferenceHelper.getUserSessionId();
     if (userId != null) {
       try {
-        final response = await ApiService.fetchUserStudentList(userId, sessionId);
+        final response = await ApiService.fetchUserStudentList(
+          userId,
+          sessionId,
+        );
         final data = response.data;
         print('Session check response: $data');
         if (data[0]['result'] == 'ok') {

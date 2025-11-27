@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/services/children_service.dart';
-import 'package:kiddo_tracker/services/workmanager_callback.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:logger/logger.dart';
 
@@ -298,46 +297,6 @@ class _OTPScreenState extends State<OTPScreen> {
     try {
       final result = await ChildrenService().fetchChildren();
       if (result['success'] == true) {
-        // Get list of child route timings
-        List<String> childRouteTimings = [];
-        final children = result['result']['children'] as List<dynamic>;
-        for (var child in children) {
-          for (var route in child.routeInfo) {
-            if (route.stopArrivalTime.isNotEmpty) {
-              childRouteTimings.add(route.stopArrivalTime);
-            }
-          }
-        }
-        print('List of child route timings: $childRouteTimings');
-
-        // Find the smallest time and subtract 1 hour
-        if (childRouteTimings.isNotEmpty) {
-          DateTime? earliestTime;
-          for (var timeStr in childRouteTimings) {
-            try {
-              final time = DateTime.parse('2023-01-01 $timeStr');
-              if (earliestTime == null || time.isBefore(earliestTime)) {
-                earliestTime = time;
-              }
-            } catch (e) {
-              // Skip invalid time strings
-            }
-          }
-          if (earliestTime != null) {
-            final adjustedTime = earliestTime.subtract(
-              const Duration(hours: 1),
-            );
-            print(
-              'Smallest time minus 1 hour: Hours: ${adjustedTime.hour}, Minutes: ${adjustedTime.minute}',
-            );
-            // Store hours and minutes in shared preferences
-            SharedPreferenceHelper.setEarliestRouteHour(adjustedTime.hour);
-            SharedPreferenceHelper.setEarliestRouteMinute(adjustedTime.minute);
-            // Schedule daily data load
-            await scheduleDailyDataLoad();
-          }
-        }
-
         if (mounted) {
           SharedPreferenceHelper.setUserLoggedIn(true);
           Navigator.pushNamed(context, AppRoutes.main);

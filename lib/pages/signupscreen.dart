@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/api/apimanage.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
-import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:logger/logger.dart';
 
 class SignUpScreen extends StatefulWidget {
