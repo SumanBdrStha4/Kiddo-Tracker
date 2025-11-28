@@ -26,7 +26,7 @@ class SqfliteHelper {
       path,
       version: 2,
       onCreate: _onCreate,
-      // onUpgrade: _onUpgrade,
+      onUpgrade: _onUpgrade,
       readOnly: false,
     );
   }
@@ -116,6 +116,27 @@ class SqfliteHelper {
         userid TEXT
       )
     ''');
+
+    //notifications table
+    await db.execute('''
+      CREATE TABLE notifications(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        notice_id TEXT,
+        type INTEGER,
+        priority INTEGER,
+        title TEXT,
+        description TEXT,
+        validity DATETIME,
+        route_id TEXT,
+        is_read INTEGER DEFAULT 0
+      )
+    ''');
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Create new table
+    }
   }
 
   //activity CURD
@@ -474,6 +495,7 @@ class SqfliteHelper {
       client.execute('DELETE FROM activityStatus;');
       client.execute('DELETE FROM studentSubscriptions;');
       client.execute('DELETE FROM routes;');
+      client.execute('DELETE FROM notifications;');
     });
   }
 
@@ -543,5 +565,54 @@ class SqfliteHelper {
       }
       return [];
     });
+  }
+
+  //notification
+  Future<void> insertNotification(Map<String, Object> map) async {
+    final dbClient = await db;
+    await dbClient.insert('notifications', map);
+  }
+
+  Future<List<Map<String, Object?>>> getNotifications() async {
+    final dbClient = await db;
+    return await dbClient.query(
+      'notifications',
+      orderBy: 'priority DESC, validity DESC',
+    );
+  }
+
+  Future<int> updateNotificationIsRead(int id, int isRead) async {
+    final dbClient = await db;
+    return await dbClient.update(
+      'notifications',
+      {'is_read': isRead},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<bool> getNotificationByNoticeId(String string) async {
+    final dbClient = await db;
+    final results = await dbClient.query(
+      'notifications',
+      where: 'notice_id = ?',
+      whereArgs: [string],
+    );
+    return results.isNotEmpty;
+  }
+
+  Future<void> clearNotifications() async {
+    final dbClient = await db;
+    //clear the data from notifications table
+    await dbClient.execute('DELETE FROM notifications;');
+  }
+
+  Future<int> getUnreadNotificationCount() async {
+    final dbClient = await db;
+    final result = await dbClient.rawQuery(
+      'SELECT COUNT(*) as count FROM notifications WHERE is_read = 0;',
+    );
+    int count = Sqflite.firstIntValue(result) ?? 0;
+    return count;
   }
 }

@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/api/apimanage.dart';
@@ -23,8 +26,42 @@ import 'package:provider/provider.dart';
 
 import '../services/workmanager_callback.dart';
 
+// Top-level function for isolate entry point
+void getNotificationIsolate(dynamic message) async {
+  BackgroundIsolateBinaryMessenger.ensureInitialized(
+    message['rootIsolateToken'],
+  );
+  final SendPort sendPort = message['sendPort'];
+  final List<Map<String, String>> routes = message['routes'];
+  try {
+    final userId = await SharedPreferenceHelper.getUserNumber();
+    final sessionId = await SharedPreferenceHelper.getUserSessionId();
+    if (userId != null && sessionId != null) {
+      List results = [];
+      for (var route in routes) {
+        final response = await ApiService.getNotification(
+          userId,
+          sessionId,
+          route['routeId']!,
+          route['oprId']!,
+        );
+        results.add(response.data);
+        Logger().i('Data added: ${response.data}');
+      }
+      sendPort.send({'success': true, 'data': results});
+    } else {
+      sendPort.send({
+        'success': false,
+        'error': 'User ID or Session ID is null',
+      });
+    }
+  } catch (e) {
+    sendPort.send({'success': false, 'error': e.toString()});
+  }
+}
+
 class HomeScreen extends StatefulWidget {
-  final VoidCallback? onNewMessage;
+  final Function(int)? onNewMessage;
 
   const HomeScreen({super.key, this.onNewMessage});
 
@@ -93,6 +130,8 @@ class _HomeScreenState extends State<HomeScreen>
     await SharedPreferenceHelper.setEarliestRouteMinute(minute);
     await scheduleDailyDataLoad(hour, minute);
     // await scheduleDailyDataLoad(15, 40);
+    // Call getNotification in isolate after initialization
+    await getNotificationInIsolate();
   }
 
   Future<void> _subscribeToTopics() async {
@@ -250,7 +289,7 @@ class _HomeScreenState extends State<HomeScreen>
       Logger().e('Error parsing MQTT message: $e');
     }
     //on every notificaion it will be called
-    widget.onNewMessage?.call();
+    // widget.onNewMessage?.call();
   }
 
   void _handleOnboardMessage(
@@ -867,6 +906,99 @@ class _HomeScreenState extends State<HomeScreen>
       Logger().i(
         'Local route → oprid: ${route['oprid']} | route_id: ${route['route_id']}',
       );
+    }
+  }
+
+  // Function to call getNotification in a separate isolate
+  Future<void> getNotificationInIsolate() async {
+    final receivePort = ReceivePort();
+    final children = Provider.of<ChildrenProvider>(
+      context,
+      listen: false,
+    ).children;
+    final List<Map<String, String>> routesList = [];
+    final Set<String> uniqueRoutes = <String>{};
+    for (var child in children) {
+      for (var route in child.routeInfo) {
+        final String key = '${route.routeId}_${route.oprId}';
+        if (!uniqueRoutes.contains(key)) {
+          uniqueRoutes.add(key);
+          routesList.add({'routeId': route.routeId, 'oprId': route.oprId});
+        }
+      }
+    }
+    final userId = await SharedPreferenceHelper.getUserNumber();
+    final sessionId = await SharedPreferenceHelper.getUserSessionId();
+    final message = {
+      'sendPort': receivePort.sendPort,
+      'routes': routesList,
+      'userId': userId,
+      'sessionId': sessionId,
+      'rootIsolateToken': RootIsolateToken.instance!,
+    };
+    await Isolate.spawn(getNotificationIsolate, message);
+
+    final result = await receivePort.first as Map<String, dynamic>;
+    if (result['success'] == true) {
+      Logger().i('Notifications fetched successfully: ${result['data']}');
+      /*
+      Notifications fetched successfully: [[{result: ok}, {data: [{notice_id: 5, type: 3, priority: 1, title: Route Operation Timing Updated, description: Route Operation "1"  stopage Timing changed. , validity: 2025-11-06T00:00:00.000Z, id: 1}, {notice_id: 7, type: 3, priority: 1, title: Route Operation Timing Updated, description: Route Operation "1"  stopage Timing changed. , validity: 2025-11-07T00:00:00.000Z, id: 1}, {notice_id: 10, type: 2, priority: 1, title: Stop List Updated, description: Stop List of Route ID "OD94689000001" is Modified. , validity: 2025-11-11T00:00:00.000Z, id: OD94689000001}, {notice_id: 11, type: 3, priority: 1, title: Route Operation Timing Updated, description: Route Operation "1"  stopage Timing changed. , validity: 2025-11-11T00:00:00.000Z, id: 1}]}]]
+      */
+      // count the data length from result['data'] and update the onNewMessage
+      final notifications = result['data'] as List<dynamic>;
+      int notificationCount = 0;
+      int newNotificationCount = 0;
+      //clear existing notifications from database before inserting new ones
+      // await _sqfliteHelper.clearNotifications();
+      //get existing unread notification count
+      final int getUnreadNotice =
+                await _sqfliteHelper.getUnreadNotificationCount();
+      for (var notificationSet in notifications) {
+        if (notificationSet is List &&
+            notificationSet.length > 1 &&
+            notificationSet[0]['result'] == 'ok') {
+          final data = notificationSet[1]['data'] as List<dynamic>;
+          notificationCount += data.length;
+          //store the notifications in the database
+          for (var notice in data) {
+            //handle duplicate notification based on notice_id
+            final bool existingNotice = await _sqfliteHelper
+                .getNotificationByNoticeId(notice['notice_id'].toString());
+            if (existingNotice == false) {
+              newNotificationCount++;
+              Logger().i("new notice"+ notice['notice_id'].toString());
+              //insert into notification table
+              await _sqfliteHelper.insertNotification({
+                'notice_id': notice['notice_id'].toString(),
+                'type': notice['type'].toString(),
+                'priority': notice['priority'].toString(),
+                'title': notice['title'].toString(),
+                'description': notice['description'].toString(),
+                'validity': notice['validity'].toString(),
+                'route_id': notice['id'].toString(),
+                'is_read': 0, // 0 for unread, 1 for read
+              });
+            } 
+            else {
+              Logger().i("not bull"+ notice['notice_id'].toString());
+            }
+          }
+        }
+      }
+
+      //show count of new notifications or unread notifications
+      Logger().i('Total notifications from server: $notificationCount');
+      Logger().i('New notifications added: $newNotificationCount');
+      Logger().i('Total unread notifications in DB: $getUnreadNotice');
+      // add newNotificationCount and getUnreadNotice
+      final totalNotifications = newNotificationCount + getUnreadNotice;
+      Logger().i('Total notifications to show: $totalNotifications');
+      if (totalNotifications > 0) {
+        //update the onNewMessage
+        widget.onNewMessage?.call(totalNotifications);
+      }
+    } else {
+      Logger().e('Error fetching notifications: ${result['error']}');
     }
   }
 }

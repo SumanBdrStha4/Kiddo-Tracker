@@ -218,4 +218,16 @@ class ApiService {
       },
     );
   }
+
+  static Future<Response> getNotification(
+    String userId,
+    String sessionId,
+    String routeId,
+    String oprId,
+  ) async {
+    return await ApiManager().post(
+      'ktunoticedata/',
+      data: {'userid': userId, 'sessionid': sessionId, 'route_id': routeId, 'oprid': oprId},
+    );
+  }
 }

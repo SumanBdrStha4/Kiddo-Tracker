@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/pages/activityscreen.dart';
 import 'package:kiddo_tracker/pages/addchildscreen.dart';
+import 'package:kiddo_tracker/pages/changedactivity.dart';
 import 'package:kiddo_tracker/pages/homescreen.dart';
 import 'package:kiddo_tracker/pages/settingscreen.dart';
 
@@ -17,11 +18,11 @@ class _MainScreenState extends State<MainScreen> {
   final PageController _pageController = PageController();
   int _notificationCount = 0;
 
-  void incrementNotificationCount() {
-    setState(() {
-      _notificationCount++;
-    });
-  }
+  // void incrementNotificationCount() {
+  //   setState(() {
+  //     _notificationCount++;
+  //   });
+  // }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -38,6 +39,10 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure _selectedIndex is within bounds
+    if (_selectedIndex >= 4) {
+      _selectedIndex = 0;
+    }
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -54,35 +59,32 @@ class _MainScreenState extends State<MainScreen> {
                 iconSize: 24,
                 splashRadius: 20,
                 onPressed: () {
-                  setState(() {
-                    _notificationCount = 0;
-                  });
-                  _onItemTapped(2);
+                  _pageController.jumpToPage(
+                    4,
+                  ); // Navigate to ChangedActivity screen
                 },
               ),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
-                  child: Text(
-                    _notificationCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
+              if (_notificationCount > 0)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    textAlign: TextAlign.center,
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      _notificationCount.toString(),
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
@@ -96,10 +98,23 @@ class _MainScreenState extends State<MainScreen> {
           });
         },
         children: [
-          HomeScreen(onNewMessage: incrementNotificationCount),
+          HomeScreen(
+            onNewMessage: (count) {
+              setState(() {
+                _notificationCount = count;
+              });
+            },
+          ),
           const AddChildScreen(),
           const ActivityScreen(),
           SettingScreen(),
+          ChangedActivity(
+            onNewMessage: (count) {
+              setState(() {
+                _notificationCount = count;
+              });
+            },
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
