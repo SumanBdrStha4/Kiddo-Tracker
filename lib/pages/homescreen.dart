@@ -560,23 +560,20 @@ class _HomeScreenState extends State<HomeScreen>
             //get 'stop_name' and 'location' from stopsData
             //list to add stop_name and location
 
-            //initiialize stoplocation
-            StopLocation stopLocation = StopLocation(
-              stopId: '',
-              stopName: '',
-              location: '',
-            );
-
+            //using a list to store the StopLocations
+            late List<StopLocation> stopLocations = [];
             // List<Map<String, String>> stopLocations = [];
             //store the stop_name and location in a list
             for (var stopData in stopsData) {
               Logger().i(
                 'stop_name: ${stopData['stop_name']}, location: ${stopData['location']}',
               );
-              stopLocation = StopLocation(
-                stopId: stopData['stop_id'],
-                stopName: stopData['stop_name'],
-                location: stopData['location'],
+              stopLocations.add(
+                StopLocation(
+                  stopId: stopData['stop_id'],
+                  stopName: stopData['stop_name'],
+                  location: stopData['location'],
+                ),
               );
               // stopLocations.add({
               //   'stop_name': stopData['stop_name'],
@@ -585,7 +582,16 @@ class _HomeScreenState extends State<HomeScreen>
             }
             //show the stopLocations in a dialog
             // _showStopLocationsDialog(stopLocations, driverName, contact1, contact2);
-            StopLocationsDialog(stopLocation, driverName, contact1, contact2);
+            Logger().i('Showing ${stopsData.length} stop locations dialog');
+            showDialog(
+              context: context,
+              builder: (context) => StopLocationsDialog(
+                stopLocations,
+                driverName,
+                contact1,
+                contact2,
+              ),
+            );
           } catch (e) {
             Logger().e('Error parsing stop_list JSON: $e');
             ScaffoldMessenger.of(context).showSnackBar(
@@ -951,8 +957,8 @@ class _HomeScreenState extends State<HomeScreen>
       //clear existing notifications from database before inserting new ones
       // await _sqfliteHelper.clearNotifications();
       //get existing unread notification count
-      final int getUnreadNotice =
-                await _sqfliteHelper.getUnreadNotificationCount();
+      final int getUnreadNotice = await _sqfliteHelper
+          .getUnreadNotificationCount();
       for (var notificationSet in notifications) {
         if (notificationSet is List &&
             notificationSet.length > 1 &&
@@ -966,7 +972,7 @@ class _HomeScreenState extends State<HomeScreen>
                 .getNotificationByNoticeId(notice['notice_id'].toString());
             if (existingNotice == false) {
               newNotificationCount++;
-              Logger().i("new notice"+ notice['notice_id'].toString());
+              Logger().i("new notice" + notice['notice_id'].toString());
               //insert into notification table
               await _sqfliteHelper.insertNotification({
                 'notice_id': notice['notice_id'].toString(),
@@ -978,9 +984,8 @@ class _HomeScreenState extends State<HomeScreen>
                 'route_id': notice['id'].toString(),
                 'is_read': 0, // 0 for unread, 1 for read
               });
-            } 
-            else {
-              Logger().i("not bull"+ notice['notice_id'].toString());
+            } else {
+              Logger().i("not bull" + notice['notice_id'].toString());
             }
           }
         }

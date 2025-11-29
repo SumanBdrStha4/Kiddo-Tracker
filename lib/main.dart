@@ -30,7 +30,8 @@ void main() async {
   );
   // Schedule daily data load
   // await scheduleDailyDataLoad(15, 36);
-
+  //isInitialized the dotenv 
+  dotenv.isInitialized;
   // Load environment variables with error handling
   try {
     await dotenv.load();

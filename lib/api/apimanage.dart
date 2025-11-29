@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiManager {
   static final ApiManager _instance = ApiManager._internal();
@@ -9,7 +10,9 @@ class ApiManager {
   ApiManager._internal() {
     dio = Dio(
       BaseOptions(
-        baseUrl: 'http://172.235.25.172:3000/api/',
+        baseUrl:
+            (dotenv.isInitialized ? dotenv.env['BASE_URL'] : null) ??
+            'http://172.235.25.172:3000/api/',
         headers: {'Content-Type': 'application/json'},
       ),
     );
