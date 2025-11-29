@@ -27,6 +27,7 @@ class _SettingScreenState extends State<SettingScreen> {
   String Address = '';
   String session = '';
   List<Map<String, dynamic>> children = [];
+  List<Map<String, dynamic>> subscriptions = [];
 
   @override
   void initState() {
@@ -53,12 +54,15 @@ class _SettingScreenState extends State<SettingScreen> {
   Future<void> _fetchUserData() async {
     List<Map<String, dynamic>> users = await sqfliteHelper.getUsers();
     List<Map<String, dynamic>> children = await sqfliteHelper.getChildren();
+    List<Map<String, dynamic>> subscriptions = await sqfliteHelper
+        .getStudentSubscriptions();
     setState(() {
       userName = users[0]['name'];
       mobileNumber = users[0]['mobile'];
       Address = users[0]['address'];
       session = users[0]['sessionid'];
       this.children = List.from(children);
+      this.subscriptions = List.from(subscriptions);
     });
   }
 
@@ -233,6 +237,20 @@ class _SettingScreenState extends State<SettingScreen> {
                           fontSize: 14,
                         ),
                       ),
+                      Text(
+                        'Plan: ${subscriptions.firstWhere((sub) => sub['student_id'] == child['student_id'], orElse: () => {})['plan_name'] ?? 'No plan selected'}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        'Days left: ${_calculateDaysLeft(child)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
                     ],
                   ),
                   trailing: Row(
@@ -240,14 +258,19 @@ class _SettingScreenState extends State<SettingScreen> {
                     children: [
                       IconButton(
                         icon: Icon(Icons.edit, color: Colors.blueAccent),
+                        tooltip: 'Edit child',
                         onPressed: () => editChild(idx),
                       ),
+                      SizedBox(height: 4),
                       IconButton(
                         icon: Icon(Icons.delete, color: Colors.redAccent),
+                        tooltip: 'Delete child',
                         onPressed: () => _confirmDeleteChild(idx),
                       ),
+                      SizedBox(height: 4),
                       IconButton(
                         icon: Icon(Icons.event_note, color: Colors.green),
+                        tooltip: 'Request leave',
                         onPressed: () => requestLeave(child),
                       ),
                     ],
@@ -543,6 +566,24 @@ class _SettingScreenState extends State<SettingScreen> {
           ),
         ),
       );
+    }
+  }
+
+  String _calculateDaysLeft(Map<String, dynamic> child) {
+    final sub = subscriptions.firstWhere(
+      (sub) => sub['student_id'] == child['student_id'],
+      orElse: () => {},
+    );
+    if (sub.isEmpty || sub['enddate'] == null) {
+      return 'N/A';
+    }
+    try {
+      final endDate = DateTime.parse(sub['enddate']);
+      final now = DateTime.now();
+      final difference = endDate.difference(now).inDays;
+      return difference >= 0 ? '$difference days' : 'Expired';
+    } catch (e) {
+      return 'N/A';
     }
   }
 }
