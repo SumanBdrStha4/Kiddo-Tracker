@@ -35,9 +35,9 @@ class RouteInfo {
       stopName: json['stop_name'] ?? '',
       stopLocation: json['location'] ?? '',
       schoolLocation: json['school_location'] ?? '',
-      oprId: int.parse(json['oprid']) ?? 0,
+      oprId: int.parse(json['oprid'] ?? '0'),
       vehicleId: json['vehicle_id'] ?? '',
-      stopId: int.parse(json['stop_id']) ?? 0,
+      stopId: int.parse(json['stop_id'] ?? '0'),
     );
   }
 

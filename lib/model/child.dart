@@ -99,4 +99,9 @@ class Child {
     'status': status,
     'onboard_status': onboard_status,
   };
+
+    @override
+  String toString() {
+    return toJson().toString();
+  }
 }

@@ -46,4 +46,9 @@ class SubscriptionPlan {
     'status': status,
     'userid': userid,
   };
+
+  @override
+  String toString() {
+    return toJson().toString();
+  }
 }

@@ -107,11 +107,13 @@ class ChildrenService {
             // List<dynamic> routeInfo = parseRouteInfo(routeInfoString);
             Logger().i(routeInfo);
             // Convert each dynamic map to RouteInfo object
-            studentRouteInfo = routeInfo
-                .map((route) => RouteInfo.fromJson(route))
-                .toList();
-            //check studentRouteInfo
-            Logger().i('Parsed Route Info: $studentRouteInfo');
+            studentRouteInfo = routeInfo.map((route) {
+              route['school_location'] = "";
+              route['start_time'] = "";
+              return RouteInfo.fromJson(route);
+            }).toList();
+            //cnvert the studentRouteInfo to string
+
           }
           //set in Child
           Child child = Child(
