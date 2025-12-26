@@ -130,77 +130,80 @@ class _AddChildScreenState extends State<AddChildScreen> {
       );
       final data = response.data;
       Logger().i(data);
-          if (data[0]['result'] == 'ok') {
-            final int parsedAge = int.parse(age);
-            if (!widget.isEdit) {
-              //add new child in database
-              final studentId = data[1]['data']['student_id'] ?? '';
-              final child = Child(
-                studentId: studentId,
-                name: childname,
-                nickname: nickname,
-                school: school,
-                class_name: className,
-                rollno: rollNo,
-                age: parsedAge,
-                gender: gender ?? '',
-                tagId: "",
-                routeInfo: [],
-                tsp_id: [],
-                status: 0,
-                onboard_status: 0,
-              );
-              // save child to database
-              await db.insertChild(child);
-              //show child data
-              Logger().i(child.toJson());
-              Logger().i('Child added successfully');
-              // update MQTT subscriptions with new child
-              final provider = Provider.of<ChildrenProvider>(context, listen: false);
-              await provider.subscribeToTopics();
-            } else {
-              // update existing child in database
-              final studentId = widget.childData?['student_id'] ?? '';
-              final child = Child(
-                studentId: studentId,
-                name: childname,
-                nickname: nickname,
-                school: school,
-                class_name: className,
-                rollno: rollNo,
-                age: parsedAge,
-                gender: gender ?? '',
-                tagId: widget.childData?['tagId'] ?? '',
-                routeInfo: widget.childData?['routeInfo'] ?? [],
-                tsp_id: widget.childData?['tsp_id'] ?? '',
-                status: widget.childData?['status'] ?? 0,
-                onboard_status: widget.childData?['onboard_status'] ?? 0,
-              );
-              await db.updateChild(child);
-              Logger().i('Child updated successfully');
-            }
-            _showSnackBar(
-              widget.isEdit
-                  ? 'Child updated successfully'
-                  : 'Child added successfully',
-              Colors.green,
-            );
-            // clear all the text fields
-            clearAllField();
-            // update the list of children in the HomeScreen
-            Provider.of<ChildrenProvider>(context, listen: false).updateChildren();
-            //back to home screen
-            // Navigator.pushNamedAndRemoveUntil(
-            //   context,
-            //   AppRoutes.main,
-            //   (route) => false,
-            // );
-          } else {
-            _showSnackBar(
-              widget.isEdit ? 'Error updating child' : 'Error adding child',
-              Colors.red,
-            );
-          }
+      if (data[0]['result'] == 'ok') {
+        final int parsedAge = int.parse(age);
+        if (!widget.isEdit) {
+          //add new child in database
+          final studentId = data[1]['data']['student_id'] ?? '';
+          final child = Child(
+            studentId: studentId,
+            name: childname,
+            nickname: nickname,
+            school: school,
+            class_name: className,
+            rollno: rollNo,
+            age: parsedAge,
+            gender: gender ?? '',
+            tagId: "",
+            routeInfo: [],
+            tsp_id: [],
+            status: 0,
+            onboard_status: 0,
+          );
+          // save child to database
+          await db.insertChild(child);
+          //show child data
+          Logger().i(child.toJson());
+          Logger().i('Child added successfully');
+          // update MQTT subscriptions with new child
+          final provider = Provider.of<ChildrenProvider>(
+            context,
+            listen: false,
+          );
+          await provider.subscribeToNewStudentTopics(studentId);
+        } else {
+          // update existing child in database
+          final studentId = widget.childData?['student_id'] ?? '';
+          final child = Child(
+            studentId: studentId,
+            name: childname,
+            nickname: nickname,
+            school: school,
+            class_name: className,
+            rollno: rollNo,
+            age: parsedAge,
+            gender: gender ?? '',
+            tagId: widget.childData?['tagId'] ?? '',
+            routeInfo: widget.childData?['routeInfo'] ?? [],
+            tsp_id: widget.childData?['tsp_id'] ?? '',
+            status: widget.childData?['status'] ?? 0,
+            onboard_status: widget.childData?['onboard_status'] ?? 0,
+          );
+          await db.updateChild(child);
+          Logger().i('Child updated successfully');
+        }
+        _showSnackBar(
+          widget.isEdit
+              ? 'Child updated successfully'
+              : 'Child added successfully',
+          Colors.green,
+        );
+        // clear all the text fields
+        clearAllField();
+        // update the list of children in the HomeScreen
+        Provider.of<ChildrenProvider>(context, listen: false).updateChildren();
+        //back to home screen
+        // Navigator.pushNamedAndRemoveUntil(
+        //   context,
+        //   AppRoutes.main,
+        //   (route) => false,
+        // );
+      } else {
+        _showSnackBar(
+          widget.isEdit ? 'Error updating child' : 'Error adding child',
+          Colors.red,
+        );
+      }
     }
   }
 
@@ -246,7 +249,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                         controller: _nameController,
                         focusNode: _nameFocus,
                         textCapitalization: TextCapitalization.sentences,
-                        keyboardType: TextInputType.name,
+                        keyboardType: TextInputType.text,
                         decoration: InputDecoration(
                           labelText: 'Full Name',
                           prefixIcon: Icon(
@@ -279,7 +282,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                         controller: _nicknameController,
                         focusNode: _nicknameFocus,
                         textCapitalization: TextCapitalization.sentences,
-                        keyboardType: TextInputType.name,
+                        keyboardType: TextInputType.text,
                         decoration: InputDecoration(
                           labelText: 'Nickname',
                           prefixIcon: Icon(
@@ -432,7 +435,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                             vertical: 12,
                           ),
                         ),
-                        value: gender,
+                        initialValue: gender,
                         items: ['Male', 'Female', 'Other']
                             .map(
                               (g) => DropdownMenuItem(

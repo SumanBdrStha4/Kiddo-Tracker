@@ -42,7 +42,7 @@ class MQTTService {
         .withWillTopic('willtopic')
         .withWillMessage('My Will message')
         .startClean()
-        .withWillQos(MqttQos.atLeastOnce);
+        .withWillQos(MqttQos.exactlyOnce);
     client.connectionMessage = connMess;
 
     try {
@@ -57,7 +57,7 @@ class MQTTService {
     // Subscribe to all topics after successful connection
     for (var topic in subscribedTopics) {
       Logger().i("/kiddotrac/$topic");
-      client.subscribe("/kiddotrac/$topic", MqttQos.atLeastOnce);
+      client.subscribe("/kiddotrac/$topic", MqttQos.exactlyOnce);
     }
     onConnectionStatusChanged('Connected');
 
@@ -75,7 +75,7 @@ class MQTTService {
   void onConnected() {
     // Subscribe to all topics on connection
     for (var topic in subscribedTopics) {
-      client.subscribe("/kiddotrac/$topic", MqttQos.atLeastOnce);
+      client.subscribe("/kiddotrac/$topic", MqttQos.exactlyOnce);
     }
     onConnectionStatusChanged('Connected');
   }
@@ -90,6 +90,7 @@ class MQTTService {
 
   void onAutoReconnected() {
     onLogMessage('Client auto reconnection sequence has completed');
+    onConnectionStatusChanged('Auto Connected');
   }
 
   void onSubscribed(String topic) {
@@ -112,23 +113,33 @@ class MQTTService {
     client.disconnect();
   }
 
+  //subscribe to multiple topics
   void subscribeToTopics(List<String> topics) {
     subscribedTopics = topics;
     if (client.connectionStatus?.state == MqttConnectionState.connected) {
       for (var topic in topics) {
-        client.subscribe("/kiddotrac/$topic", MqttQos.atLeastOnce);
+        client.subscribe("/kiddotrac/$topic", MqttQos.exactlyOnce);
         onLogMessage('Subscribed to topic: $topic');
       }
     }
   }
 
-  //unsubscribe to all it has
-  void unsubscribeFromAllTopics() {
-    for (var topic in subscribedTopics) {
-      client.unsubscribe("/kiddotrac/$topic");
-      onLogMessage('Unsubscribed from topic: $topic');
+  //subscribe to single topic
+  void subscribeToTopic(String topic) {
+    subscribedTopics.add(topic);
+    if (client.connectionStatus?.state == MqttConnectionState.connected) {
+      client.subscribe("/kiddotrac/$topic", MqttQos.exactlyOnce);
+      onLogMessage('Subscribed to topic: $topic');
     }
   }
+
+  //unsubscribe to all it has
+  // void unsubscribeFromAllTopics() {
+  //   for (var topic in subscribedTopics) {
+  //     client.unsubscribe("/kiddotrac/$topic");
+  //     onLogMessage('Unsubscribed from topic: $topic');
+  //   }
+  // }
 
   //unsubscribe from specific topics
   void unsubscribeFromTopics(List<String> topics) {

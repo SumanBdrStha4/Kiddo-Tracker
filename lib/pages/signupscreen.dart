@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
-import 'package:kiddo_tracker/api/apimanage.dart';
+import 'package:kiddo_tracker/model/parent.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
+import 'package:kiddo_tracker/widget/shareperference.dart';
+import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
 
 class SignUpScreen extends StatefulWidget {
-  String? mobile;
-  SignUpScreen({super.key, this.mobile});
+  final String? mobile;
+  const SignUpScreen({super.key, this.mobile});
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
@@ -16,6 +18,8 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final Logger logger = Logger();
   final _formKey = GlobalKey<FormState>();
+  late Future<List<dynamic>> stateList;
+  final SqfliteHelper _sqfliteHelper = SqfliteHelper();
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
@@ -30,6 +34,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void initState() {
     super.initState();
     _contactController.text = widget.mobile ?? '';
+    stateList = fetchStateList();
   }
 
   @override
@@ -45,75 +50,84 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  void _submit() async {
     if (_formKey.currentState!.validate()) {
-      //call apimanager
-      ApiManager()
-          .post(
-            'ktrackusersignup',
-            data: {
-              'userid': _contactController.text,
-              'name': _nameController.text,
-              'city': _cityController.text,
-              'state': _stateController.text,
-              'address': _addressController.text,
-              'contact': _contactController.text,
-              'email': _emailController.text,
-              'mobile': _mobileController.text,
-              'pin': int.parse(_pinController.text),
-              'wards': "0",
-              'status': "0",
-            },
-          )
-          .then((response) {
+      //use ApiService
+      await ApiService.SignUpUser(
+        _contactController.text,
+        _nameController.text,
+        _cityController.text,
+        _stateController.text,
+        _addressController.text,
+        _mobileController.text,
+        _emailController.text,
+        _contactController.text,
+        int.parse(_pinController.text),
+      ).then((response) async {
+        if (response.statusCode == 200) {
+          if (response.data[0]['result'] == 'ok') {
+            // SharedPreferenceHelper.setUserSessionId(
+            //   response.data[1]['sessionid'],
+            // );
+            //get the session
+            String sessionID = response.data[1]['sessionid'];
+            //save the user information
+            //await _sqfliteHelper.insertUser(parent);
+            Parent parent = Parent(
+              userid: _contactController.text,
+              name: _nameController.text,
+              city: _cityController.text,
+              state: _stateController.text,
+              address: _addressController.text,
+              contact: _contactController.text,
+              email: _emailController.text,
+              mobile: _mobileController.text,
+              wards: 0,
+              status: 1,
+              pin: int.parse(_pinController.text),
+            );
+            await _sqfliteHelper.insertUser(parent);
+            await SharedPreferenceHelper.setUserSessionId(sessionID);
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Sign up successful')));
+            //call logout api
+            await ApiService.logoutUser(_contactController.text, sessionID);
             if (response.statusCode == 200) {
+              logger.i(response.toString());
               if (response.data[0]['result'] == 'ok') {
-                // SharedPreferenceHelper.setUserSessionId(
-                //   response.data[1]['sessionid'],
-                // );
-                //call logout api
-                ApiService.logoutUser(
-                  _contactController.text,
-                  response.data[1]['sessionid'],
-                );
-                if (response.statusCode == 200) {
-                  logger.i(response.toString());
-                  if (response.data[0]['result'] == 'ok') {
-                    Navigator.pushNamed(context, AppRoutes.pin);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Sign up successful')),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: ${response.data['message']}'),
-                      ),
-                    );
-                  }
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Failed to logout: ${response.statusMessage}',
-                      ),
-                    ),
-                  );
-                }
+                Navigator.pushNamed(context, AppRoutes.pin);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: ${response.data['message']}')),
+                  SnackBar(
+                    content: Text(
+                      'Logout Response: ${response.data['message']}',
+                    ),
+                  ),
                 );
               }
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
-                    'Failed to send OTP: ${response.statusMessage}',
-                  ),
+                  content: Text('Failed to logout: ${response.statusMessage}'),
                 ),
               );
             }
-          });
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('SignUp response: ${response.data['message']}'),
+              ),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to SignUp: ${response.statusMessage}'),
+            ),
+          );
+        }
+      });
     }
   }
 
@@ -232,10 +246,51 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: _buildTextField(
-                                label: 'State',
-                                controller: _stateController,
-                                icon: Icons.map,
+                              child: FutureBuilder<List<dynamic>>(
+                                future: stateList,
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const CircularProgressIndicator();
+                                  } else if (snapshot.hasError) {
+                                    return Text('Error: ${snapshot.error}');
+                                  } else if (snapshot.hasData) {
+                                    final states = snapshot.data!;
+                                    return DropdownButtonFormField<String>(
+                                      isExpanded: true,
+                                      decoration: const InputDecoration(
+                                        labelText: 'State',
+                                        prefixIcon: Icon(Icons.map),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      initialValue:
+                                          _stateController.text.isNotEmpty
+                                          ? _stateController.text
+                                          : null,
+                                      items: states
+                                          .map<DropdownMenuItem<String>>((
+                                            state,
+                                          ) {
+                                            return DropdownMenuItem<String>(
+                                              value: state['state'],
+                                              child: Text(state['state']),
+                                            );
+                                          })
+                                          .toList(),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _stateController.text = value ?? '';
+                                        });
+                                      },
+                                      validator: (value) =>
+                                          value == null || value.isEmpty
+                                          ? 'Please select a state'
+                                          : null,
+                                    );
+                                  } else {
+                                    return const Text('No states available');
+                                  }
+                                },
                               ),
                             ),
                           ],
@@ -267,5 +322,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       ),
     );
+  }
+
+  Future<List<dynamic>> fetchStateList() async {
+    try {
+      final response = await ApiService.getStateList();
+      if (response.statusCode == 200 &&
+          response.data is List &&
+          response.data.length > 1) {
+        return response.data[1]['data'] as List<dynamic>;
+      } else {
+        throw Exception('Failed to load state list');
+      }
+    } catch (e) {
+      logger.e('Error fetching state list: $e');
+      return [];
+    }
   }
 }

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/model/child.dart';
 import 'package:kiddo_tracker/model/subscribe.dart';
 import 'package:kiddo_tracker/mqtt/MQTTService.dart';
+import 'package:kiddo_tracker/services/mqtt_task_handler.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChildrenProvider with ChangeNotifier {
   List<Child> _children = [];
@@ -11,6 +13,7 @@ class ChildrenProvider with ChangeNotifier {
   List<Map<String, dynamic>> activities = [];
   final SqfliteHelper _sqfliteHelper = SqfliteHelper();
   MQTTService? _mqttService;
+  final List<String> _subscribedTopics = [];
 
   List<Child> get children => _children;
   Map<String, SubscriptionPlan> get studentSubscriptions =>
@@ -28,10 +31,12 @@ class ChildrenProvider with ChangeNotifier {
       final subscriptionsMaps = await _sqfliteHelper.getStudentSubscriptions();
 
       _children = childrenMaps.map((map) => Child.fromJson(map)).toList();
+      Logger().i('Children fetched: $_children');
       _studentSubscriptions = {
         for (var map in subscriptionsMaps)
           map['student_id'] as String: SubscriptionPlan.fromJson(map),
       };
+      Logger().i('Subscriptions fetched: $_studentSubscriptions');
 
       notifyListeners();
     } catch (e) {
@@ -63,26 +68,47 @@ class ChildrenProvider with ChangeNotifier {
     }
   }
 
+  //for first time subscription of topics
   Future<void> subscribeToTopics({MQTTService? mqttService}) async {
     final service = mqttService ?? _mqttService;
     if (service == null) return;
 
-    if (service.subscribedTopics.isNotEmpty) {
-      service.unsubscribeFromAllTopics();
-    }
-
-    Set<String> topicSet = {};
-    topicSet.addAll(_children.map((child) => child.studentId));
+    Set<String> currentTopics = {};
+    currentTopics.addAll(_children.map((child) => child.studentId));
     for (var child in _children) {
-      topicSet.addAll(
+      currentTopics.addAll(
         child.routeInfo.map((route) => '${route.routeId}/${route.oprId}'),
       );
     }
+    service.subscribeToTopics(currentTopics.toList());
+    _subscribedTopics.addAll(currentTopics.toList());
 
-    List<String> topics = topicSet.toList();
-    service.subscribeToTopics(topics);
+    // Save topics to shared preferences and start foreground task
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('subscribed_topics', currentTopics.toList());
+    await startMQTTForegroundTask(currentTopics.toList());
   }
 
+  //for newly added child
+  Future<void> subscribeToNewStudentTopics(studentId) async {
+    final service = _mqttService;
+    if (service == null) return;
+
+    _subscribedTopics.add(studentId);
+    service.subscribeToTopic(studentId);
+  }
+
+  //for newly added route
+  Future<void> subscribeToNewRouteTopics(String routeId, int oprId) async {
+    final service = _mqttService;
+    if (service == null) return;
+
+    final topic = '$routeId/$oprId';
+    _subscribedTopics.add(topic);
+    service.subscribeToTopic(topic);
+  }
+
+  //remove child Route unsubscribe topics
   Future<void> removeChildOrRouteOprid(
     String type,
     String studentId, {

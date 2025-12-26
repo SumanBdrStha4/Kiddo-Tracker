@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:logger/logger.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class StopLocation {
   final String stopId;
@@ -57,7 +56,7 @@ class StopLocationsDialog extends StatefulWidget {
 
 class _StopLocationsDialogState extends State<StopLocationsDialog> {
   GoogleMapController? _mapController;
-  Set<Marker> _markers = {};
+  final Set<Marker> _markers = {};
   StopLocation? _selectedStop;
   bool _isMapLoading = true;
   Timer? _mapLoadTimer;

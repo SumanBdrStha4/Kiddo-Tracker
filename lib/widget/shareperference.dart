@@ -74,6 +74,5 @@ class SharedPreferenceHelper {
     await prefs.remove("userSessionId");
     await prefs.remove("earliestRouteHour");
     await prefs.remove("earliestRouteMinute");
-    await prefs.remove("sessionExpiry");
   }
 }

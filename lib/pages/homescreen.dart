@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -115,19 +114,41 @@ class _HomeScreenState extends State<HomeScreen>
     await _mqttCompleter.future;
     await _subscribeToTopics();
     await _fetchRouteStoapge();
+    // Populate stop arrival times after fetching route storage
+    stopArrivalTimes.clear();
+    final children = Provider.of<ChildrenProvider>(
+      context,
+      listen: false,
+    ).children;
+    for (var child in children) {
+      for (var route in child.routeInfo) {
+        if (route.stopArrivalTime.isNotEmpty) {
+          stopArrivalTimes.add(route.stopArrivalTime);
+        }
+      }
+    }
     //print the stopArrivalTimes list
     Logger().i('Stop Arrival Times: $stopArrivalTimes');
     stopArrivalTimes.sort(); // Sort the list in ascending order
     //get the earliest time
     final earliestTime = stopArrivalTimes.first;
     Logger().i('Earliest Stop Arrival Time: $earliestTime');
-    //split the earliest time into hour and minute
-    final timeParts = earliestTime.split(':');
-    final hour = int.parse(timeParts[0]);
-    final minute = int.parse(timeParts[1]);
+    // Extract the first time from the format "(HH:MM - HH:MM)"
+    final firstTime = earliestTime.substring(1, earliestTime.indexOf(' - '));
+    //split the first time into hour and minute
+    final timeParts = firstTime.split(':');
+    final hourStr = timeParts[0]
+        .replaceAll(RegExp(r'^\D+'), '')
+        .replaceFirst(RegExp(r'^0+'), '');
+    final minuteStr = timeParts[1]
+        .replaceAll(RegExp(r'^\D+'), '')
+        .replaceFirst(RegExp(r'^0+'), '');
+    final hour = int.parse(hourStr.isEmpty ? '0' : hourStr);
+    final minute = int.parse(minuteStr.isEmpty ? '0' : minuteStr);
     // Store the earliest route hour and minute in shared preferences
     await SharedPreferenceHelper.setEarliestRouteHour(hour);
     await SharedPreferenceHelper.setEarliestRouteMinute(minute);
+    Logger().d("The Alarm will set on: $hour : $minute");
     await scheduleDailyDataLoad(hour, minute);
     // await scheduleDailyDataLoad(15, 40);
     // Call getNotification in isolate after initialization
@@ -197,6 +218,10 @@ class _HomeScreenState extends State<HomeScreen>
                                 itemCount: children.length,
                                 itemBuilder: (context, index) {
                                   final child = children[index];
+                                  //print the child routeInfo
+                                  Logger().i(
+                                    'Child ${child.name} Route Info: ${child.routeInfo}',
+                                  );
                                   return ChildCardWidget(
                                         child: child,
                                         subscription:
@@ -245,6 +270,9 @@ class _HomeScreenState extends State<HomeScreen>
         context,
         listen: false,
       ).updateChildren();
+      Logger().i(
+        'Fetched children: ${Provider.of<ChildrenProvider>(context, listen: false).children}',
+      );
       setState(() {
         _isLoading = false;
       });
@@ -253,19 +281,6 @@ class _HomeScreenState extends State<HomeScreen>
         _isLoading = false;
       });
       Logger().e('Error fetching children from DB: $e');
-    }
-    // Populate stop arrival times
-    stopArrivalTimes.clear();
-    final children = Provider.of<ChildrenProvider>(
-      context,
-      listen: false,
-    ).children;
-    for (var child in children) {
-      for (var route in child.routeInfo) {
-        if (route.stopArrivalTime.isNotEmpty) {
-          stopArrivalTimes.add(route.stopArrivalTime);
-        }
-      }
     }
   }
 
@@ -506,7 +521,7 @@ class _HomeScreenState extends State<HomeScreen>
 
       final responseLocation = await ApiService.fetchOperationStatus(
         userId,
-        oprId,
+        oprId.toString(),
         sessionId,
       );
       Logger().i(responseLocation);
@@ -514,14 +529,14 @@ class _HomeScreenState extends State<HomeScreen>
 
       //get stop_list from database
       final sqliteStopList = await _sqfliteHelper.getStopListByOprIdAndRouteId(
-        oprId,
+        oprId.toString(),
         routeId,
       );
       Logger().i('sqliteStopList: $sqliteStopList');
       //sqliteStopList: [{stop_list: [{"stop_id":"1","stop_name":"Mumbai","location":"18.9581934,72.8320729","stop_type":1},{"stop_id":"2","stop_name":"Goa","location":"15.30106506,74.13523982","stop_type":3}]}]
 
       final stopList = await _sqfliteHelper.getStopListByOprIdAndRouteId(
-        oprId,
+        oprId.toString(),
         routeId,
       );
       Logger().i('oprId: $oprId, routeId: $routeId, stopList: $stopList');
@@ -580,6 +595,7 @@ class _HomeScreenState extends State<HomeScreen>
               //   'location': stopData['location'],
               // });
             }
+            Logger().i('Stop locations: $stopLocations');
             //show the stopLocations in a dialog
             // _showStopLocationsDialog(stopLocations, driverName, contact1, contact2);
             Logger().i('Showing ${stopsData.length} stop locations dialog');
@@ -689,9 +705,12 @@ class _HomeScreenState extends State<HomeScreen>
       'Delete tapped for route $routeId, userId: $userId, oprId: $oprId, sessonId: $sessonId',
     );
     // run api to delete/remove the route
-    ApiService.deleteStudentRoute(studentId, oprId, sessonId!, userId!).then((
-      response,
-    ) async {
+    ApiService.deleteStudentRoute(
+      studentId,
+      oprId.toString(),
+      sessonId!,
+      userId!,
+    ).then((response) async {
       if (response.statusCode == 200) {
         Logger().i(response.data);
         if (response.data[0]['result'] == 'ok') {
@@ -699,7 +718,7 @@ class _HomeScreenState extends State<HomeScreen>
             //Also remove from the database
             await _sqfliteHelper.deleteRouteInfoByStudentIdAndOprId(
               studentId,
-              oprId,
+              oprId.toString(),
             );
             // Refresh the children list to show updated data
             await Provider.of<ChildrenProvider>(
@@ -743,11 +762,13 @@ class _HomeScreenState extends State<HomeScreen>
 
       for (var tsp in tspList) {
         final String tspId = tsp['tsp_id'];
+        Logger().i(tspId);
 
         /// Extract oprid + route_id pairs from local DB
         final routeIds = <String>{};
         final oprIds = <String>{};
         _extractLocalRoutePairs(tsp['routes'], routeIds, oprIds);
+        Logger().i(routeIds);
 
         /// Fetch Remote Route List From API
         await _fetchAndProcessTspRoute(
@@ -884,6 +905,48 @@ class _HomeScreenState extends State<HomeScreen>
 
   //
   Future<void> _saveRouteToDatabase(Map<String, dynamic> route) async {
+    //add time inside route['stop_list'];
+    //first match the name from route['stop_list'] to route['stop_details'] and if match then take
+    try {
+      List<dynamic> stopList = jsonDecode(route['stop_list']);
+      List<dynamic> stopDetails = jsonDecode(route['stop_details']);
+
+      // Create a map for quick lookup of stop details by name
+      Map<String, Map<String, String>> stopDetailsMap = {};
+      for (var detail in stopDetails) {
+        if (detail is Map<String, dynamic>) {
+          String key = detail.keys.first;
+          List<dynamic> values = detail[key];
+          if (values.length >= 3) {
+            String stopName = values[0].toString().trim();
+            String arrivalTime = values[1].toString();
+            String departureTime = values[2].toString();
+            stopDetailsMap[stopName] = {
+              'arrival': arrivalTime,
+              'departure': departureTime,
+            };
+          }
+        }
+      }
+
+      // Update stop_list with time information
+      for (var stop in stopList) {
+        if (stop is Map<String, dynamic>) {
+          String stopName = stop['stop_name'] ?? '';
+          if (stopDetailsMap.containsKey(stopName)) {
+            String arrival = stopDetailsMap[stopName]!['arrival']!;
+            String departure = stopDetailsMap[stopName]!['departure']!;
+            stop['time'] = '($arrival - $departure)';
+          }
+        }
+      }
+
+      // Update route['stop_list'] with the modified list
+      route['stop_list'] = jsonEncode(stopList);
+    } catch (e) {
+      Logger().e('Error updating stop_list with times: $e');
+    }
+
     await _sqfliteHelper.insertRoute(
       route['oprid'],
       route['route_id'],
@@ -908,9 +971,9 @@ class _HomeScreenState extends State<HomeScreen>
   ) {
     for (var route in routes) {
       routeIds.add(route['route_id']);
-      oprIds.add(route['oprid']);
+      oprIds.add(route['oprid'].toString());
       Logger().i(
-        'Local route → oprid: ${route['oprid']} | route_id: ${route['route_id']}',
+        'Local route → oprid: ${route['oprid'].toString()} | route_id: ${route['route_id']}',
       );
     }
   }
@@ -929,7 +992,10 @@ class _HomeScreenState extends State<HomeScreen>
         final String key = '${route.routeId}_${route.oprId}';
         if (!uniqueRoutes.contains(key)) {
           uniqueRoutes.add(key);
-          routesList.add({'routeId': route.routeId, 'oprId': route.oprId});
+          routesList.add({
+            'routeId': route.routeId,
+            'oprId': route.oprId.toString(),
+          });
         }
       }
     }
@@ -972,7 +1038,7 @@ class _HomeScreenState extends State<HomeScreen>
                 .getNotificationByNoticeId(notice['notice_id'].toString());
             if (existingNotice == false) {
               newNotificationCount++;
-              Logger().i("new notice" + notice['notice_id'].toString());
+              Logger().i("new notice${notice['notice_id']}");
               //insert into notification table
               await _sqfliteHelper.insertNotification({
                 'notice_id': notice['notice_id'].toString(),
@@ -985,7 +1051,7 @@ class _HomeScreenState extends State<HomeScreen>
                 'is_read': 0, // 0 for unread, 1 for read
               });
             } else {
-              Logger().i("not bull" + notice['notice_id'].toString());
+              Logger().i("not bull${notice['notice_id']}");
             }
           }
         }

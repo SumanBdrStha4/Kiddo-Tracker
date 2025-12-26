@@ -7,9 +7,9 @@ class RouteInfo {
   final String stopName;
   final String stopLocation;
   final String schoolLocation;
-  final String oprId;
+  final int oprId;
   final String vehicleId;
-  final String stopId;
+  final int stopId;
 
   RouteInfo({
     required this.routeId,
@@ -29,15 +29,15 @@ class RouteInfo {
     return RouteInfo(
       routeId: json['route_id'] ?? '',
       routeName: json['route_name'] ?? '',
-      routeType: json['route_type'] ?? 0,
+      routeType: int.parse(json['type'] ?? '0'),
       startTime: json['start_time'] ?? '',
       stopArrivalTime: json['stop_arrival_time'] ?? '',
       stopName: json['stop_name'] ?? '',
       stopLocation: json['location'] ?? '',
       schoolLocation: json['school_location'] ?? '',
-      oprId: json['oprid'] ?? '',
+      oprId: int.parse(json['oprid']) ?? 0,
       vehicleId: json['vehicle_id'] ?? '',
-      stopId: json['stop_id'] ?? '',
+      stopId: int.parse(json['stop_id']) ?? 0,
     );
   }
 
@@ -55,5 +55,10 @@ class RouteInfo {
       'location': stopLocation,
       'school_location': schoolLocation,
     };
+  }
+
+  @override
+  String toString() {
+    return toJson().toString();
   }
 }

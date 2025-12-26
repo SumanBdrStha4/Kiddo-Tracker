@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
-import 'package:kiddo_tracker/model/route.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:logger/logger.dart';
 import 'package:table_calendar/table_calendar.dart';

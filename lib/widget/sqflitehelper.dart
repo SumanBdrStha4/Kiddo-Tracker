@@ -24,7 +24,7 @@ class SqfliteHelper {
     String path = join(await getDatabasesPath(), 'kiddo_tracker.db');
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       readOnly: false,
@@ -137,6 +137,7 @@ class SqfliteHelper {
     if (oldVersion < 2) {
       // Create new table
     }
+    if (oldVersion < 3) {}
   }
 
   //activity CURD
@@ -321,7 +322,7 @@ class SqfliteHelper {
               ),
             )
             .toList();
-        return routeInfos.map((route) => route.oprId).toList();
+        return routeInfos.map((route) => route.oprId.toString()).toList();
       }
     } catch (e) {
       // If parsing fails, return empty list
@@ -411,6 +412,92 @@ class SqfliteHelper {
       }
     } catch (e) {
       Logger().e('Error updating route info: $e');
+    }
+  }
+
+  //update only stopage in route_info of child base on student_id and opr_id
+  Future<void> updateChildRouteStopage(
+    String childId,
+    String routeId,
+    Map<String, String> routeData,
+  ) async {
+    Logger().i(
+      "update the stopages: $childId $routeId ${routeData.toString()}",
+    );
+    try {
+      final dbClient = await db;
+      // First, get the current child data
+      final results = await dbClient.query(
+        'child',
+        where: 'student_id = ?',
+        whereArgs: [childId],
+      );
+      if (results.isEmpty) {
+        Logger().w('No child found with student_id: $childId');
+        return;
+      }
+      final childData = results.first;
+      final routeInfoRaw = childData['route_info'] as String?;
+      Logger().i("sqlfite: $routeInfoRaw");
+      if (routeInfoRaw == null) {
+        Logger().w('route_info is null for student_id: $childId');
+        return;
+      }
+      // Decode route_info
+      final List<dynamic> routeList = jsonDecode(routeInfoRaw);
+      // Find the old route and log details
+      Map<String, dynamic>? oldRoute;
+      for (var route in routeList) {
+        if (route['route_id'] == routeId) {
+          oldRoute = Map<String, dynamic>.from(route);
+          Logger().i("Old route details: $oldRoute");
+          break;
+        }
+      }
+      // Find and update the route
+      bool updated = false;
+      for (var route in routeList) {
+        if (route['route_id'] == routeId) {
+          route['stop_id'] = routeData['stop_id'];
+          route['stop_name'] = routeData['stop_name'];
+          route['location'] = routeData['location'];
+          route['stop_arrival_time'] = routeData['stop_arrival_time'];
+          updated = true;
+          break;
+        }
+      }
+      if (updated) {
+        // Find the updated route and log details
+        Map<String, dynamic>? updatedRoute;
+        for (var route in routeList) {
+          if (route['route_id'] == routeId) {
+            updatedRoute = Map<String, dynamic>.from(route);
+            Logger().i("Updated route details: $updatedRoute");
+            break;
+          }
+        }
+      }
+      if (!updated) {
+        Logger().w('Route with route_id $routeId not found in route_info');
+        return;
+      }
+      // Encode back to JSON
+      final updatedRouteInfo = jsonEncode(routeList);
+      // Update the database
+      final affectedRows = await dbClient.update(
+        'child',
+        {'route_info': updatedRouteInfo},
+        where: 'student_id = ?',
+        whereArgs: [childId],
+      );
+      if (affectedRows > 0) {
+        Logger().i('Route stopage updated successfully.');
+        Logger().d('Stopage updated successfully in local database.');
+      } else {
+        Logger().w('No rows were updated.');
+      }
+    } catch (e) {
+      Logger().e('Error updating route stopage: $e');
     }
   }
 
@@ -527,6 +614,17 @@ class SqfliteHelper {
     }
   }
 
+  //check if route exists by oprid and route_id
+  Future<bool> routeExists(int oprid, String routeId) async {
+    final dbClient = await db;
+    final results = await dbClient.query(
+      'routes',
+      where: 'oprid = ? AND route_id = ?',
+      whereArgs: [oprid, routeId],
+    );
+    return results.isNotEmpty;
+  }
+
   //get all data from routes table
   // Future<List<Map<String, dynamic>>> getAllRoutes() async {
   //   final dbClient = await db;
@@ -548,23 +646,18 @@ class SqfliteHelper {
   }
 
   // get stop list name and location from route base on oprid and route_id
-  Future<List<Map<String, dynamic>>> getStopDetailsByOprIdAndRouteId(
+  Future<Map<String, dynamic>> getStopDetailsByOprIdAndRouteId(
     String oprId,
     String routeId,
   ) async {
-    final dbdata = getStopListByOprIdAndRouteId(oprId, routeId);
+    final dbdata = await getStopListByOprIdAndRouteId(oprId, routeId);
     Logger().i(dbdata);
-    //from dbdata get stop_list and decode it
-    return dbdata.then((value) {
-      if (value.isNotEmpty) {
-        final stopListStr = value.first['stop_list'] as String;
-        final decoded = jsonDecode(stopListStr);
-        if (decoded is List) {
-          return List<Map<String, dynamic>>.from(decoded);
-        }
-      }
-      return [];
-    });
+    //from dbdata get stop_list and selected
+    if (dbdata.isNotEmpty) {
+      final stopListStr = dbdata.first['stop_list'] as String?;
+      return {'stopListStr': stopListStr};
+    }
+    return {'stopListStr': null};
   }
 
   //notification
@@ -614,5 +707,62 @@ class SqfliteHelper {
     );
     int count = Sqflite.firstIntValue(result) ?? 0;
     return count;
+  }
+
+  Future<void> updateRouteForStudent(
+    String childId,
+    RouteInfo updatedRoute,
+  ) async {
+    final dbClient = await db;
+    // First, get the current child data
+    final results = await dbClient.query(
+      'child',
+      where: 'student_id = ?',
+      whereArgs: [childId],
+    );
+    if (results.isEmpty) {
+      Logger().w('No child found with student_id: $childId');
+      return;
+    }
+    final childData = results.first;
+    final routeInfoRaw = childData['route_info'] as String?;
+    if (routeInfoRaw == null) {
+      Logger().w('route_info is null for student_id: $childId');
+      return;
+    }
+    // Decode route_info
+    final List<dynamic> routeList = jsonDecode(routeInfoRaw);
+    // Find and update the route
+    bool updated = false;
+    for (var route in routeList) {
+      if (route['route_id'] == updatedRoute.routeId) {
+        route['start_time'] = updatedRoute.startTime;
+        route['location'] = updatedRoute.stopLocation;
+        route['stop_name'] = updatedRoute.stopName;
+        route['stop_id'] = updatedRoute.stopId;
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) {
+      Logger().w(
+        'Route with route_id ${updatedRoute.routeId} not found in route_info',
+      );
+      return;
+    }
+    // Encode back to JSON
+    final updatedRouteInfo = jsonEncode(routeList);
+    // Update the database
+    final affectedRows = await dbClient.update(
+      'child',
+      {'route_info': updatedRouteInfo},
+      where: 'student_id = ?',
+      whereArgs: [childId],
+    );
+    if (affectedRows > 0) {
+      Logger().i('Route info updated successfully.');
+    } else {
+      Logger().w('No rows were updated.');
+    }
   }
 }

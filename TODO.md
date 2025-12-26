@@ -1,1 +1,2 @@
-# TODO: Fix isRead Logic in ChangedActivity
+- [x] Add Logger().i('Fetched children: ${Provider.of<ChildrenProvider>(context, listen: false).children}') after fetching children in \_fetchChildrenFromDb.
+- [x] Add Logger().i('Stop locations: $stopLocations') after building the stopLocations list in \_onLocationTap.

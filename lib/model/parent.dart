@@ -9,7 +9,6 @@ class Parent {
   final String mobile;
   final int wards;
   final int status;
-  final String sessionid;
   final int pin;
 
   Parent({
@@ -23,7 +22,6 @@ class Parent {
     required this.mobile,
     required this.wards,
     required this.status,
-    required this.sessionid,
     required this.pin,
   });
 
@@ -39,7 +37,6 @@ class Parent {
       mobile: json['mobile'] as String,
       wards: json['wards'] as int,
       status: json['status'] as int,
-      sessionid: json['sessionid'] as String,
       pin: json['pin'] as int,
     );
   }
@@ -56,7 +53,6 @@ class Parent {
       'mobile': mobile,
       'wards': wards,
       'status': status,
-      'sessionid': sessionid,
       'pin': pin,
     };
   }

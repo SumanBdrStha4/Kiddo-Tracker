@@ -53,17 +53,20 @@ class _SettingScreenState extends State<SettingScreen> {
 
   Future<void> _fetchUserData() async {
     List<Map<String, dynamic>> users = await sqfliteHelper.getUsers();
+    Logger().d(users);
     List<Map<String, dynamic>> children = await sqfliteHelper.getChildren();
     List<Map<String, dynamic>> subscriptions = await sqfliteHelper
         .getStudentSubscriptions();
-    setState(() {
-      userName = users[0]['name'];
-      mobileNumber = users[0]['mobile'];
-      Address = users[0]['address'];
-      session = users[0]['sessionid'];
-      this.children = List.from(children);
-      this.subscriptions = List.from(subscriptions);
-    });
+    if (mounted) {
+      setState(() {
+        userName = users[0]['name'] ?? '';
+        mobileNumber = users[0]['mobile'] ?? '';
+        Address = users[0]['address'] ?? '';
+        session = users[0]['sessionid'] ?? '';
+        this.children = List.from(children);
+        this.subscriptions = List.from(subscriptions);
+      });
+    }
   }
 
   bool darkMode = false;

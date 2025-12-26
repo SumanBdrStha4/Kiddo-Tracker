@@ -58,16 +58,16 @@ class AppRoutes {
     }
   }
 
-  static Map<String, WidgetBuilder> get routes {
-    return {
-      login: (context) => const LoginScreen(),
-      otp: (context) => OTPScreen(),
-      pin: (context) => PINScreen(),
-      forgetPin: (context) => ForgetPINScreen(),
-      signup: (context) => SignUpScreen(),
-      main: (context) => const MainScreen(),
-      subscribe: (context) => const SubscriptionScreen(),
-      addRoute: (context) => AddChildRoutePage(),
-    };
-  }
+  // static Map<String, WidgetBuilder> get routes {
+  //   return {
+  //     login: (context) => const LoginScreen(),
+  //     otp: (context) => OTPScreen(),
+  //     pin: (context) => PINScreen(),
+  //     forgetPin: (context) => ForgetPINScreen(),
+  //     signup: (context) => SignUpScreen(),
+  //     main: (context) => const MainScreen(),
+  //     subscribe: (context) => const SubscriptionScreen(),
+  //     addRoute: (context) => AddChildRoutePage(),
+  //   };
+  // }
 }

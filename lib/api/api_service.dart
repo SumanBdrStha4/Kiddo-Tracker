@@ -20,6 +20,35 @@ class ApiService {
     );
   }
 
+  static Future<Response> SignUpUser(
+    String userid,
+    String name,
+    String city,
+    String state,
+    String address,
+    String contact,
+    String email,
+    String mobile,
+    int pin,
+  ) async {
+    return await ApiManager().post(
+      'ktrackusersignup/',
+      data: {
+        'userid': userid,
+        'name': name,
+        'city': city,
+        'state': state,
+        'address': address,
+        'contact': contact,
+        'email': email,
+        'mobile': mobile,
+        'pin': pin,
+        'wards': "0",
+        'status': "0",
+      },
+    );
+  }
+
   static Future<Response> logoutUser(String mobile, String sessionId) async {
     return await ApiManager().post(
       'ktrackuserlogout/',
@@ -77,6 +106,23 @@ class ApiService {
     return await ApiManager().post(
       'ktuserstudentlist/',
       data: {'userid': userId, 'sessionid': sessionId},
+    );
+  }
+
+  static Future<Response> updateStudentRoute(
+    String userId,
+    String sessionId,
+    String childId,
+    String routeData,
+  ) async {
+    return await ApiManager().post(
+      'ktuserupdateroute',
+      data: {
+        'userid': userId,
+        'sessionid': sessionId,
+        'student_id': childId,
+        'route_info': routeData,
+      },
     );
   }
 
@@ -227,7 +273,19 @@ class ApiService {
   ) async {
     return await ApiManager().post(
       'ktunoticedata/',
-      data: {'userid': userId, 'sessionid': sessionId, 'route_id': routeId, 'oprid': oprId},
+      data: {
+        'userid': userId,
+        'sessionid': sessionId,
+        'route_id': routeId,
+        'oprid': oprId,
+      },
+    );
+  }
+
+  static Future<Response> getStateList() async {
+    return await ApiManager().post(
+      'statelistpub/',
+      data: {'passkey': "St3nM4Dat"},
     );
   }
 }

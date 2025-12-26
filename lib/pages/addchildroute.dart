@@ -40,13 +40,13 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
   int? _selectedRouteType;
   String? _selectedRouteId;
   String? _selectedTime;
-  String? _selectedorpId;
+  int? _selectedorpId;
   String? _selectedStopage;
   String? _selectedStopageName;
   String? _selectedHomeGeo;
   String? _schoolStopGeo;
   String? _selectedStopAriveTime;
-  String? _stopageId;
+  int? _stopageId;
   String? _vehicleId;
   //for round way store multi routes
   final List<String> _selectedRoundRoutes = [];
@@ -57,13 +57,13 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
   int? _onwardRouteType = 1;
   String? _onwardRouteId;
   String? _onwardTime;
-  String? _onwardorpId;
+  int? _onwardorpId;
   String? _onwardStopage;
   String? _onwardStopageName;
   String? _onwardHomeGeo;
   String? _onwardSchoolStopGeo;
   String? _onwardStopAriveTime;
-  String? _onwardStopageId;
+  int? _onwardStopageId;
   String? _onwardVehicleId;
   List<String> _onwardTimes = [];
   List<Map<String, String?>> _onwardStopages = [];
@@ -74,13 +74,13 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
   int? _returnRouteType = 2;
   String? _returnRouteId;
   String? _returnTime;
-  String? _returnorpId;
+  int? _returnorpId;
   String? _returnStopage;
   String? _returnStopageName;
   String? _returnHomeGeo;
   String? _returnSchoolStopGeo;
   String? _returnStopAriveTime;
-  String? _returnStopageId;
+  int? _returnStopageId;
   String? _returnVehicleId;
   List<String> _returnTimes = [];
   List<Map<String, String?>> _returnStopages = [];
@@ -115,9 +115,10 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                 'student_id': widget.stdId,
                 'route_id': _selectedRouteId,
                 'route_name': _selectedRouteName,
-                'oprid': _selectedorpId,
+                'oprid': _selectedorpId.toString(),
+                'type': _selectedRouteType.toString(),
                 'vehicle_id': _vehicleId,
-                'stop_id': _stopageId,
+                'stop_id': _stopageId.toString(),
                 'location': _selectedHomeGeo,
                 'stop_name': _selectedStopageName,
                 'stop_arrival_time': _selectedTime,
@@ -134,16 +135,18 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                         routeId: _selectedRouteId ?? '',
                         routeType: _selectedRouteType ?? 0,
                         routeName: _selectedRouteName ?? '',
-                        startTime: _selectedStopAriveTime ?? '',
-                        stopArrivalTime: _selectedTime ?? '',
+                        startTime: _selectedTime ?? '',
+                        stopArrivalTime:
+                            _selectedStopAriveTime ?? '', //_selectedTime ?? '',
                         stopName: _selectedStopageName ?? '',
                         stopLocation: _selectedHomeGeo ?? '',
                         schoolLocation: _schoolStopGeo ?? '',
-                        oprId: _selectedorpId ?? '',
+                        oprId: _selectedorpId ?? 0,
                         vehicleId: _vehicleId ?? '',
-                        stopId: _stopageId ?? '',
+                        stopId: _stopageId ?? 0,
                       ),
                     );
+                    
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -204,9 +207,9 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                         stopName: _onwardStopageName ?? '',
                         stopLocation: _onwardHomeGeo ?? '',
                         schoolLocation: _onwardSchoolStopGeo ?? '',
-                        oprId: _onwardorpId ?? '',
+                        oprId: _onwardorpId ?? 0,
                         vehicleId: _onwardVehicleId ?? '',
-                        stopId: _onwardStopageId ?? '',
+                        stopId: _onwardStopageId ?? 0,
                       ),
                     );
                     // Now save return route
@@ -243,9 +246,9 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                                     stopName: _returnStopageName ?? '',
                                     stopLocation: _returnHomeGeo ?? '',
                                     schoolLocation: _returnSchoolStopGeo ?? '',
-                                    oprId: _returnorpId ?? '',
+                                    oprId: _returnorpId ?? 0,
                                     vehicleId: _returnVehicleId ?? '',
-                                    stopId: _returnStopageId ?? '',
+                                    stopId: _returnStopageId ?? 0,
                                   ),
                                 );
                               } else {
@@ -302,6 +305,34 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
   Future<void> _saveRouteToDb(RouteInfo routeInfo) async {
     if (widget.stdId != null) {
       final sqfliteHelper = SqfliteHelper();
+      // Determine stopages based on routeId
+      List<Map<String, String?>> stopages;
+      if (routeInfo.routeId == _selectedRouteId) {
+        stopages = _stopages;
+      } else if (routeInfo.routeId == _onwardRouteId) {
+        stopages = _onwardStopages;
+      } else if (routeInfo.routeId == _returnRouteId) {
+        stopages = _returnStopages;
+      } else {
+        stopages = [];
+      }
+      // Check if route exists, if not, insert
+      bool exists = await sqfliteHelper.routeExists(
+        routeInfo.oprId,
+        routeInfo.routeId,
+      );
+      if (!exists) {
+        await sqfliteHelper.insertRoute(
+          routeInfo.oprId,
+          routeInfo.routeId,
+          routeInfo.stopArrivalTime,
+          routeInfo.vehicleId,
+          routeInfo.routeName,
+          routeInfo.routeType,
+          jsonEncode(stopages),
+          jsonEncode(stopages),
+        );
+      }
       // Get existing routes
       final existingRouteStr = await sqfliteHelper.getRouteInfoByStudentId(
         widget.stdId!,
@@ -332,7 +363,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
       await sqfliteHelper.updateRouteInfoByStudentId(widget.stdId!, newRoute);
       final provider = Provider.of<ChildrenProvider>(context, listen: false);
       await provider.updateChildren();
-      await provider.subscribeToTopics();
+      await provider.subscribeToNewRouteTopics(routeInfo.routeId, routeInfo.oprId);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("New Route Added Successfully."),
@@ -372,7 +403,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
           vertical: 12,
         ),
       ),
-      value: type == 'single'
+      initialValue: type == 'single'
           ? _selectedRoute
           : (type == 'onward' ? _onwardRoute : _returnRoute),
       items: _routes
@@ -535,7 +566,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
           vertical: 12,
         ),
       ),
-      value: type == 'single'
+      initialValue: type == 'single'
           ? _selectedTime
           : (type == 'onward' ? _onwardTime : _returnTime),
       items:
@@ -548,17 +579,16 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
         setState(() {
           if (type == 'single') {
             _selectedTime = value;
-            _selectedorpId = callback
-                .getOprIdbyTiming(value!, _selectedRouteId!)
-                .toString();
+            _selectedorpId = callback.getOprIdbyTiming(
+              value!,
+              _selectedRouteId!,
+            );
             _vehicleId = callback
                 .getVehicleIdbyTiming(value, _selectedRouteId!)
                 .toString();
             // base on time selected get update time in stopages list
             //call getTimesbyStopId from callback
-            List<String> times = callback.getRouteTimesbyOprId(
-              int.parse(_selectedorpId!),
-            );
+            List<String> times = callback.getRouteTimesbyOprId(_selectedorpId!);
             // update the _stopages time value based on times list
             //only in match case
             for (int i = 0; i < _stopages.length; i++) {
@@ -569,8 +599,12 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                   String entryStopName = parts[0];
                   String arrivalPart = parts[1];
                   String departurePart = parts[2];
-                  String arrivalTime = arrivalPart.split(': ')[1];
-                  String departureTime = departurePart.split(': ')[1];
+                  String arrivalTime = arrivalPart.split(': ').length > 1
+                      ? arrivalPart.split(': ')[1]
+                      : '';
+                  String departureTime = departurePart.split(': ').length > 1
+                      ? departurePart.split(': ')[1]
+                      : '';
                   if (entryStopName == stopName) {
                     _stopages[i]['time'] = '($arrivalTime - $departureTime)';
                     break;
@@ -580,17 +614,13 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
             }
           } else if (type == 'onward') {
             _onwardTime = value;
-            _onwardorpId = callback
-                .getOprIdbyTiming(value!, _onwardRouteId!)
-                .toString();
+            _onwardorpId = callback.getOprIdbyTiming(value!, _onwardRouteId!);
             _onwardVehicleId = callback
                 .getVehicleIdbyTiming(value, _onwardRouteId!)
                 .toString();
             // base on time selected get update time in stopages list
             //call getTimesbyStopId from callback
-            List<String> times = callback.getRouteTimesbyOprId(
-              int.parse(_onwardorpId!),
-            );
+            List<String> times = callback.getRouteTimesbyOprId(_onwardorpId!);
             // update the _onwardStopages time value based on times list
             //only in match case
             for (int i = 0; i < _onwardStopages.length; i++) {
@@ -601,8 +631,12 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                   String entryStopName = parts[0];
                   String arrivalPart = parts[1];
                   String departurePart = parts[2];
-                  String arrivalTime = arrivalPart.split(': ')[1];
-                  String departureTime = departurePart.split(': ')[1];
+                  String arrivalTime = arrivalPart.split(': ').length > 1
+                      ? arrivalPart.split(': ')[1]
+                      : '';
+                  String departureTime = departurePart.split(': ').length > 1
+                      ? departurePart.split(': ')[1]
+                      : '';
                   if (entryStopName == stopName) {
                     _onwardStopages[i]['time'] =
                         '($arrivalTime - $departureTime)';
@@ -613,17 +647,13 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
             }
           } else {
             _returnTime = value;
-            _returnorpId = callback
-                .getOprIdbyTiming(value!, _returnRouteId!)
-                .toString();
+            _returnorpId = callback.getOprIdbyTiming(value!, _returnRouteId!);
             _returnVehicleId = callback
                 .getVehicleIdbyTiming(value, _returnRouteId!)
                 .toString();
             // base on time selected get update time in stopages list
             //call getTimesbyStopId from callback
-            List<String> times = callback.getRouteTimesbyOprId(
-              int.parse(_returnorpId!),
-            );
+            List<String> times = callback.getRouteTimesbyOprId(_returnorpId!);
             // update the _returnStopages time value based on times list
             //only in match case
             for (int i = 0; i < _returnStopages.length; i++) {
@@ -634,8 +664,12 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                   String entryStopName = parts[0];
                   String arrivalPart = parts[1];
                   String departurePart = parts[2];
-                  String arrivalTime = arrivalPart.split(': ')[1];
-                  String departureTime = departurePart.split(': ')[1];
+                  String arrivalTime = arrivalPart.split(': ').length > 1
+                      ? arrivalPart.split(': ')[1]
+                      : '';
+                  String departureTime = departurePart.split(': ').length > 1
+                      ? departurePart.split(': ')[1]
+                      : '';
                   if (entryStopName == stopName) {
                     _returnStopages[i]['time'] =
                         '($arrivalTime - $departureTime)';
@@ -755,19 +789,23 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                     _selectedStopageName = stopage['value'];
                     _selectedHomeGeo = stopage['location'];
                     _selectedStopAriveTime = stopage['time'];
-                    _stopageId = stopage['key'];
+                    _stopageId = int.tryParse(stopage['key']?.toString() ?? '');
                   } else if (type == 'onward') {
                     _onwardStopage = stopage['value'];
                     _onwardStopageName = stopage['value'];
                     _onwardHomeGeo = stopage['location'];
                     _onwardStopAriveTime = stopage['time'];
-                    _onwardStopageId = stopage['key'];
+                    _onwardStopageId = int.tryParse(
+                      stopage['key']?.toString() ?? '',
+                    );
                   } else {
                     _returnStopage = stopage['value'];
                     _returnStopageName = stopage['value'];
                     _returnHomeGeo = stopage['location'];
                     _returnStopAriveTime = stopage['time'];
-                    _returnStopageId = stopage['key'];
+                    _returnStopageId = int.tryParse(
+                      stopage['key']?.toString() ?? '',
+                    );
                   }
                 });
               },
@@ -832,7 +870,13 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
           borderRadius: BorderRadius.circular(8),
         ),
       ),
-      value: _selectedInstitute,
+      initialValue: _selectedInstitute,
+      selectedItemBuilder: (BuildContext context) {
+        return _tspList?.map((tsp) {
+              return Text(tsp['name'] ?? '');
+            }).toList() ??
+            [];
+      },
       items: _tspList?.map((tsp) {
         return DropdownMenuItem<String>(
           value: tsp['tsp_id'],
@@ -915,12 +959,15 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                             size: 28,
                           ),
                           const SizedBox(width: 12),
-                          Text(
-                            'Confirm Route Assignment',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
+                          Expanded(
+                            child: Text(
+                              'Confirm Route Assignment',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                              softWrap: true,
                             ),
                           ),
                         ],
@@ -939,7 +986,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                                 ? [
                                     _buildTripCard(
                                       colorScheme,
-                                      'One Way Trip',
+                                      'One Way Trip (${_selectedRouteType == 2 ? "Return" : "OnWard"})',
                                       Icons.directions_car,
                                       [
                                         _buildDetailRow(
@@ -951,8 +998,15 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                                         _buildDetailRow(
                                           colorScheme,
                                           Icons.access_time,
-                                          'Time',
+                                          'Bus Start Time',
                                           _selectedTime ?? 'Not selected',
+                                        ),
+                                        _buildDetailRow(
+                                          colorScheme,
+                                          Icons.bus_alert,
+                                          'Bus Arraival Time',
+                                          _selectedStopAriveTime ??
+                                              'Not selected',
                                         ),
                                         _buildDetailRow(
                                           colorScheme,

@@ -116,12 +116,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: ElevatedButton(
                           onPressed: () {
                             if (_formKey.currentState!.validate()) {
-                              callAPI();
-                              // Navigator.pushNamed(
-                              //   context,
-                              //   AppRoutes.otp,
-                              //   arguments: "8456029772",
-                              // );
+                              // callAPI();
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.otp,
+                                arguments: "8456029772",
+                              );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(

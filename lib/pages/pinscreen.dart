@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
-import 'package:kiddo_tracker/pages/otpscreen.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
+import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
 
 import '../routes/routes.dart';
-import '../services/children_service.dart';
 
 class PINScreen extends StatefulWidget {
   const PINScreen({super.key});
@@ -21,6 +20,7 @@ class _PINScreenState extends State<PINScreen> {
     (_) => TextEditingController(),
   );
   final Logger logger = Logger();
+  final SqfliteHelper _sqfliteHelper = SqfliteHelper();
 
   bool _isLoading = false;
 
@@ -55,16 +55,41 @@ class _PINScreenState extends State<PINScreen> {
         mobileNumber = "1234567890";
       }
       final response = await ApiService.verifyPIN(mobileNumber, pin);
+      Logger().d("debug: $response");
       final data = response.data;
       if (response.data[0]['result'] == 'ok') {
+        //update new session token
+        String newSessionToken = response.data[1]['userdata'][0]['sessionid']
+            .toString();
+        /*
+        [{result: ok}, {userdata: [{userid: 8456029772, name: Suman Shrestha, city: BBS, state: Odisha, address: khandagiri, contact: 8456029772, email: suman123@gmail.com, mobile: 1234567890, wards: 0, status: 1, pin: 1234, sessionid: 363708456029772}]}, {studentdata: ktuserstudentlist Data not found}]
+        */
+        //tempory
+        // Parent parent = Parent(
+        //   userid: response.data[1]['userdata'][0]['userid'],
+        //   name: response.data[1]['userdata'][0]['name'],
+        //   city: response.data[1]['userdata'][0]['city'],
+        //   state: response.data[1]['userdata'][0]['state'],
+        //   address: response.data[1]['userdata'][0]['address'],
+        //   contact: response.data[1]['userdata'][0]['contact'],
+        //   email: response.data[1]['userdata'][0]['email'],
+        //   mobile: response.data[1]['userdata'][0]['mobile'],
+        //   wards: response.data[1]['userdata'][0]['wards'],
+        //   status: response.data[1]['userdata'][0]['status'],
+        //   pin: response.data[1]['userdata'][0]['pin'],
+        // );
+        // await _sqfliteHelper.insertUser(parent);
+
+        await SharedPreferenceHelper.setUserSessionId(newSessionToken);
         //clear all except mobile number and isLoggedIn
-        SharedPreferenceHelper.clearAllExceptNumberAndLogin();
-        SharedPreferenceHelper.setUserLoggedIn(true);
+        // SharedPreferenceHelper.clearAllExceptNumberAndLogin();
+        // SharedPreferenceHelper.setUserLoggedIn(true);
         //use ChildrenService _processChildrenData
-        final result = await ChildrenService().processChildrenData(data);
-        if (result['success'] == true) {
-          Navigator.pushNamed(context, AppRoutes.main);
-        }
+        // final result = await ChildrenService().processChildrenData(data);
+        // if (result['success'] == true) {
+        SharedPreferenceHelper.setUserLoggedIn(true);
+        Navigator.pushNamed(context, AppRoutes.main);
+        // }
       } else {
         String data = response.data[1]['data'];
         ScaffoldMessenger.of(

@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/model/route.dart';
 import 'package:kiddo_tracker/utils/in_range.dart';
+import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
+import 'package:logger/web.dart';
 
 class RouteCardWidget extends StatefulWidget {
   final String childId;
@@ -62,7 +66,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
       //also upadate onboard time and offboard time if same student message is received
       final times = await _sqfliteHelper.getActivityTimesForRoute(
         route.routeId,
-        route.oprId,
+        route.oprId.toString(),
         widget.childId,
       );
       setState(() {
@@ -82,167 +86,8 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
       widget.routes.sort(
         (a, b) => a.stopArrivalTime.compareTo(b.stopArrivalTime),
       );
-      startTime = widget.routes.first.stopArrivalTime;
+      startTime = widget.routes.first.startTime;
     }
-
-    // return Card(
-    //   margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-    //   elevation: 4,
-    //   shape: RoundedRectangleBorder(
-    //     borderRadius: BorderRadius.circular(12),
-    //   ),
-    //   child: Padding(
-    //     padding: const EdgeInsets.all(16.0),
-    //     child: Row(
-    //       crossAxisAlignment: CrossAxisAlignment.center,
-    //       children: [
-    //         Expanded(
-    //           child: Column(
-    //             crossAxisAlignment: CrossAxisAlignment.start,
-    //             children: [
-    //               Row(
-    //                 children: [
-    //                   Expanded(
-    //                     child: Text(
-    //                       '${widget.routes.first.routeName} starts at $startTime',
-    //                       style: const TextStyle(
-    //                         fontSize: 16,
-    //                         fontWeight: FontWeight.bold,
-    //                         fontFamily: 'Roboto',
-    //                         color: Colors.black87,
-    //                       ),
-    //                     ),
-    //                   ),
-    //                 ],
-    //               ),
-    //               const SizedBox(height: 12),
-    //               InkWell(
-    //                 onTap: widget.onOnboardTap != null
-    //                     ? () {
-    //                         print('Onboard tapped for route ${widget.routeId}');
-    //                         widget.onOnboardTap!(
-    //                           widget.routeId,
-    //                           widget.routes,
-    //                         );
-    //                       }
-    //                     : null,
-    //                 borderRadius: BorderRadius.circular(8),
-    //                 child: Padding(
-    //                   padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-    //                   child: Row(
-    //                     children: [
-    //                       Icon(
-    //                         Icons.login,
-    //                         size: 18,
-    //                         color: Colors.blue,
-    //                       ),
-    //                       const SizedBox(width: 8),
-    //                       Text(
-    //                         'Onboard at $onboardTime',
-    //                         style: const TextStyle(
-    //                           color: Colors.blue,
-    //                           fontSize: 14,
-    //                           fontFamily: 'Roboto',
-    //                           fontWeight: FontWeight.w500,
-    //                         ),
-    //                       ),
-    //                     ],
-    //                   ),
-    //                 ),
-    //               ),
-    //               const SizedBox(height: 8),
-    //               InkWell(
-    //                 onTap: widget.onOffboardTap != null
-    //                     ? () {
-    //                         print('Offboard tapped for route ${widget.routeId}');
-    //                         widget.onOffboardTap!(
-    //                           widget.routeId,
-    //                           widget.routes,
-    //                         );
-    //                       }
-    //                     : null,
-    //                 borderRadius: BorderRadius.circular(8),
-    //                 child: Padding(
-    //                   padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-    //                   child: Row(
-    //                     children: [
-    //                       Icon(
-    //                         Icons.logout,
-    //                         size: 18,
-    //                         color: Colors.blue,
-    //                       ),
-    //                       const SizedBox(width: 8),
-    //                       Text(
-    //                         'Offboard at $offboardTime',
-    //                         style: const TextStyle(
-    //                           color: Colors.blue,
-    //                           fontSize: 14,
-    //                           fontFamily: 'Roboto',
-    //                           fontWeight: FontWeight.w500,
-    //                         ),
-    //                       ),
-    //                     ],
-    //                   ),
-    //                 ),
-    //               ),
-    //             ],
-    //           ),
-    //         ),
-    //         const SizedBox(width: 16),
-    //         Column(
-    //           children: [
-    //             InkWell(
-    //               onTap: _getBusIconColor() == Colors.green && widget.onBusTap != null
-    //                   ? () => widget.onBusTap!(widget.routeId, widget.routes)
-    //                   : null,
-    //               borderRadius: BorderRadius.circular(8),
-    //               child: Container(
-    //                 padding: const EdgeInsets.all(8),
-    //                 decoration: BoxDecoration(
-    //                   color: _getBusIconColor().withOpacity(0.1),
-    //                   borderRadius: BorderRadius.circular(8),
-    //                 ),
-    //                 child: Icon(
-    //                   Icons.directions_bus_outlined,
-    //                   size: 36,
-    //                   color: _getBusIconColor(),
-    //                 ),
-    //               ),
-    //             ),
-    //             const SizedBox(height: 12),
-    //             Row(
-    //               children: [
-    //                 Icon(Icons.location_on, size: 20, color: Colors.grey),
-    //                 const SizedBox(width: 8),
-    //                 InkWell(
-    //                   onTap: widget.onDeleteTap != null
-    //                       ? () => widget.onDeleteTap!(
-    //                           widget.routeId,
-    //                           widget.routes,
-    //                         )
-    //                       : null,
-    //                   borderRadius: BorderRadius.circular(8),
-    //                   child: Container(
-    //                     padding: const EdgeInsets.all(4),
-    //                     decoration: BoxDecoration(
-    //                       color: Colors.red.withOpacity(0.1),
-    //                       borderRadius: BorderRadius.circular(8),
-    //                     ),
-    //                     child: const Icon(
-    //                       Icons.delete,
-    //                       size: 20,
-    //                       color: Colors.red,
-    //                     ),
-    //                   ),
-    //                 ),
-    //               ],
-    //             ),
-    //           ],
-    //         ),
-    //       ],
-    //     ),
-    //   ),
-    // );
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 5),
       elevation: 4,
@@ -434,6 +279,31 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
             const SizedBox(width: 5),
             Column(
               children: [
+                //onTap show stopage by routeId and oprId
+                //show the list in dialog box and show previous selected stopage and on change change the stopage and a save button
+                //on save update the stopage in database
+                InkWell(
+                  onTap: _showStopageDialog,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(
+                        255,
+                        87,
+                        68,
+                        255,
+                      ).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.route_outlined,
+                      size: 15,
+                      color: const Color.fromARGB(255, 87, 68, 255),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
                 InkWell(
                   onTap: widget.onLocationTap != null
                       ? () =>
@@ -478,6 +348,207 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
         ),
       ),
     ).animate().fade(duration: 600.ms).slide(begin: const Offset(0, 0.1));
+  }
+
+  Future<void> _showStopageDialog() async {
+    if (widget.routes.isEmpty) return;
+
+    final route = widget.routes.first;
+    //print the data of route
+    Logger().d('Selected Route: ${route.toJson()}');
+    String? selectedStopId = route.stopId.toString();
+    String? selectedGeoLocation;
+    String? selectedStopName;
+    String? selectedTime;
+    Logger().d(
+      'Fetching stopages for oprId: ${route.oprId}, routeId: ${route.routeId}, stopId: ${route.stopId}',
+    );
+    final stopagesData = await _sqfliteHelper.getStopDetailsByOprIdAndRouteId(
+      route.oprId.toString(),
+      route.routeId,
+    );
+    Logger().d('Stopages Data: ${stopagesData.toString()}');
+    final stopListStr = stopagesData['stopListStr'] as String?;
+    List<Map<String, dynamic>> stopages = [];
+    if (stopListStr != null) {
+      final decoded = jsonDecode(stopListStr);
+      if (decoded is List) {
+        stopages = List<Map<String, dynamic>>.from(decoded);
+        Logger().d('Decoded Stopages: $stopages');
+      }
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Select Stopage for ${route.routeName}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: ListView.builder(
+              itemCount: stopages.length,
+              itemBuilder: (context, index) {
+                final stopage = stopages[index];
+                //print all the stopage details
+                Logger().d('Stopage: $stopage');
+                // final isSelected = stopage['stop_id'] == selectedStopId;
+                Logger().d('Comparing route stopId: ${stopage['key']}');
+                //compare with stopage['key'] or stopage['stop_id']
+                final isSelected =
+                    (stopage['stop_id'] ?? stopage['key'] ?? '') ==
+                    selectedStopId;
+                Logger().d('isSelected: $isSelected');
+                return Card(
+                  color: isSelected ? Colors.blue.shade100 : null,
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.location_on,
+                      color: isSelected ? Colors.blue : Colors.grey,
+                    ),
+                    title: Text(stopage['value'] ?? stopage['stop_name'] ?? ''),
+                    // title: Text(stopage['value'] ?? ''),
+                    subtitle: Text(stopage['location'] ?? ''),
+                    trailing: Text(stopage['time'] ?? ''),
+                    onTap: () {
+                      setState(() {
+                        selectedStopId =
+                            stopage['stop_id'] ?? stopage['key'] ?? '';
+                        selectedGeoLocation = stopage['location'] ?? '';
+                        selectedStopName =
+                            stopage['value'] ?? stopage['stop_name'] ?? '';
+                        selectedTime = stopage['time'] ?? '';
+                        Logger().d('Selected StopId: $selectedStopId');
+                        Logger().d('Selected StopId: $selectedGeoLocation');
+                        Logger().d('Selected StopId: $selectedTime');
+                      });
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed:
+                  selectedStopId != null && selectedStopId != route.stopId
+                  ? () async {
+                      //use array of object and show list of stopages with stop_id, stop_name, location, time
+                      List<Map<String, String>> routeData = [
+                        {
+                          'route_id': route.routeId,
+                          'route_name': route.routeName,
+                          'oprid': route.oprId.toString(),
+                          'type': route.routeType.toString(),
+                          'vehicle_id': route.vehicleId,
+                          'stop_id': selectedStopId!,
+                          'stop_name': selectedStopName ?? '',
+                          'location': selectedGeoLocation ?? '',
+                          'stop_arrival_time': selectedTime ?? '',
+                        },
+                      ];
+                      Logger().d('Route Data for Update: $routeData');
+                      String studentId = widget.childId;
+                      String userId =
+                          (await SharedPreferenceHelper.getUserNumber())!;
+                      String sessionId =
+                          (await SharedPreferenceHelper.getUserSessionId())!;
+                      Logger().d(
+                        'Updating stopage for StudentId: $studentId, UserId: $userId, SessionId: $sessionId',
+                      );
+                      // Update the stopage in database
+                      await _updateStopage(
+                        selectedStopId!,
+                        selectedTime!,
+                        userId,
+                        sessionId,
+                        routeData,
+                        route,
+                      );
+                      Navigator.of(context).pop();
+                      // Refresh the widget
+                      setState(() {});
+                    }
+                  : null,
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateStopage(
+    String newStopId,
+    String newStopTime,
+    String userId,
+    String sessionId,
+    List<Map<String, String>> routeData,
+    RouteInfo route,
+  ) async {
+    try {
+      //call the api to update the stopage
+      Logger().d('Updating stopage with data: $routeData');
+      Logger().d(
+        'API Call with userid: $userId, sessionid: $sessionId, student_id: ${widget.childId}, route_info: ${routeData.toString()}',
+      );
+      ApiService.updateStudentRoute(
+        userId,
+        sessionId,
+        widget.childId,
+        routeData.toString(),
+      ).then((response) async {
+        if (response.statusCode == 200) {
+          Logger().d('API Response: $response');
+          if ((response.data[0]['result'] == 'ok')) {
+            Logger().d('Stopage updated successfully on server.');
+            // Update the stopage in local database
+            await _sqfliteHelper.updateChildRouteStopage(
+              widget.childId,
+              route.routeId,
+              routeData[0],
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Stopage updated successfully')),
+            );
+          } else {
+            Logger().e(
+              'Failed to update stopage. Server response: ${response.data}',
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Failed to update stopage: ${response.data[0]['result']}',
+                ),
+              ),
+            );
+          }
+        } else {
+          Logger().e(
+            'Failed to update stopage. Status code: ${response.statusCode}, Response data: ${response.data}',
+          );
+        }
+      });
+      // final response = await ApiManager().post(
+      //   'ktuserupdateroute',
+      //   data: {
+      //     'userid': userId,
+      //     'sessionid': sessionId,
+      //     'student_id': widget.childId.toString(),
+      //     'route_info': routeData,
+      //   },
+      // );
+      //if ok update the stopage in local database
+    } catch (e) {
+      Logger().e('Error updating stopage: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error updating stopage: $e')));
+    }
   }
 
   Color _getBusIconColor() {

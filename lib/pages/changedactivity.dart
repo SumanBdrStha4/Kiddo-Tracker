@@ -121,7 +121,7 @@ class _ChangedActivityState extends State<ChangedActivity> {
   @override
   Widget build(BuildContext context) {
     return Theme(
-      data: Theme.of(context).copyWith(useMaterial3: true),
+      data: Theme.of(context).copyWith(),
       child: Scaffold(
         body: RefreshIndicator(
           onRefresh: _fetchData,

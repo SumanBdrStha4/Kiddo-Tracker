@@ -213,6 +213,7 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
               children: groupedRoutes.entries.map((entry) {
                 final routeId = entry.key;
                 final routes = entry.value;
+                //print the routeId and routes for debugging
                 return RouteCardWidget(
                   childId: widget.child.studentId,
                   routeId: routeId,
