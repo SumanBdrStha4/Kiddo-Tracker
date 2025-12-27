@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' as rendering;
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
@@ -21,6 +22,7 @@ Future<List<String>> _getSubscribedTopics() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  rendering.debugRepaintRainbowEnabled = true;
   // Initialize AndroidAlarmManager
   await AndroidAlarmManager.initialize();
   // Initialize notifications
@@ -133,6 +135,7 @@ class _MainAppState extends State<MainApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      // showPerformanceOverlay: true,
       theme: ThemeData.light().copyWith(
         textTheme: ThemeData.light().textTheme.apply(fontFamily: 'Roboto'),
       ),

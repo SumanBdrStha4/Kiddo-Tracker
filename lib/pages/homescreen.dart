@@ -81,9 +81,7 @@ class _HomeScreenState extends State<HomeScreen>
   late MQTTService _mqttService;
   final Completer<MQTTService> _mqttCompleter = Completer<MQTTService>();
 
-  Map<String, bool> activeRoutes = {};
   List<String> stopArrivalTimes = [];
-  int _boardRefreshKey = 0;
 
   String _mqttStatus = 'Disconnected';
 
@@ -220,34 +218,67 @@ class _HomeScreenState extends State<HomeScreen>
                                   Logger().i(
                                     'Child ${child.name} Route Info: ${child.routeInfo}',
                                   );
-                                  return ChildCardWidget(
-                                        child: child,
-                                        subscription:
-                                            studentSubscriptions[child
-                                                .studentId],
-                                        onSubscribeTap: () =>
-                                            _onSubscribe(child),
-                                        onBusTap: (routeId, routes) =>
-                                            _onBusTap(routeId, routes),
-                                        onLocationTap: (routeId, routes) =>
-                                            _onLocationTap(routeId, routes),
-                                        onDeleteTap: (routeId, routes) =>
-                                            _onDeleteTap(
-                                              routeId,
-                                              routes,
-                                              child.studentId,
-                                            ),
-                                        onOnboardTap: (routeId, routes) =>
-                                            _onOnboard(routeId, routes),
-                                        onOffboardTap: (routeId, routes) =>
-                                            _onOffboard(routeId, routes),
-                                        onAddRouteTap: () => _onAddRoute(child),
-                                        activeRoutes: activeRoutes,
-                                        boardRefreshKey: _boardRefreshKey,
-                                      )
-                                      .animate()
-                                      .fade(duration: 600.ms)
-                                      .slide(begin: const Offset(0, 0.1));
+                                  return ValueListenableBuilder<Child>(
+                                    valueListenable: provider
+                                        .childNotifiers[child.studentId]!,
+                                    builder: (context, updatedChild, _) {
+                                      return ValueListenableBuilder<
+                                        Map<String, bool>
+                                      >(
+                                        valueListenable:
+                                            provider.activeRoutesNotifier,
+                                        builder: (context, activeRoutes, _) {
+                                          return ChildCardWidget(
+                                                child: updatedChild,
+                                                subscription:
+                                                    studentSubscriptions[child
+                                                        .studentId],
+                                                onSubscribeTap: () =>
+                                                    _onSubscribe(updatedChild),
+                                                onBusTap: (routeId, routes) =>
+                                                    _onBusTap(routeId, routes),
+                                                onLocationTap:
+                                                    (routeId, routes) =>
+                                                        _onLocationTap(
+                                                          routeId,
+                                                          routes,
+                                                        ),
+                                                onDeleteTap:
+                                                    (
+                                                      routeId,
+                                                      routes,
+                                                    ) => _onDeleteTap(
+                                                      routeId,
+                                                      routes,
+                                                      updatedChild.studentId,
+                                                    ),
+                                                onOnboardTap:
+                                                    (routeId, routes) =>
+                                                        _onOnboard(
+                                                          routeId,
+                                                          routes,
+                                                        ),
+                                                onOffboardTap:
+                                                    (routeId, routes) =>
+                                                        _onOffboard(
+                                                          routeId,
+                                                          routes,
+                                                        ),
+                                                onAddRouteTap: () =>
+                                                    _onAddRoute(updatedChild),
+                                                activeRoutes: activeRoutes,
+                                                boardRefreshKey:
+                                                    _boardRefreshKey,
+                                              )
+                                              .animate()
+                                              .fade(duration: 600.ms)
+                                              .slide(
+                                                begin: const Offset(0, 0.1),
+                                              );
+                                        },
+                                      );
+                                    },
+                                  );
                                 },
                               ),
                       ),
@@ -341,26 +372,24 @@ class _HomeScreenState extends State<HomeScreen>
     if (devid.isNotEmpty) {
       final provider = Provider.of<ChildrenProvider>(context, listen: false);
       final children = provider.children;
-      setState(() {
-        for (var child in children) {
-          for (var route in child.routeInfo) {
-            String key = '${route.routeId}_${route.oprId}';
-            if (key == devid) {
-              NotificationService.showNotification(
-                id: 0,
-                title: 'KT Status Update',
-                body:
-                    'Bus ${route.routeName} has been ${msgtype == 1 ? 'activated' : 'deactivated'}.',
-              );
-              if (msgtype == 1) {
-                activeRoutes[key] = true;
-              } else if (msgtype == 4) {
-                activeRoutes[key] = false;
-              }
+      for (var child in children) {
+        for (var route in child.routeInfo) {
+          String key = '${route.routeId}_${route.oprId}';
+          if (key == devid) {
+            NotificationService.showNotification(
+              id: 0,
+              title: 'KT Status Update',
+              body:
+                  'Bus ${route.routeName} has been ${msgtype == 1 ? 'activated' : 'deactivated'}.',
+            );
+            if (msgtype == 1) {
+              provider.updateActiveRoutes(key, true);
+            } else if (msgtype == 4) {
+              provider.updateActiveRoutes(key, false);
             }
           }
         }
-      });
+      }
     } else {
       Logger().w('Missing devid in bus active/inactive message');
     }

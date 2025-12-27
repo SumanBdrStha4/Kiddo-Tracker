@@ -201,7 +201,10 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
                     ],
                   ),
                 ),
-                if (widget.child.status == 1 || widget.subscription != null && widget.subscription!.student_id == widget.child.studentId)
+                if (widget.child.status == 1 ||
+                    widget.subscription != null &&
+                        widget.subscription!.student_id ==
+                            widget.child.studentId)
                   _buildStatusWidget()
                 else
                   _buildSubscriptionWidget(),
@@ -223,7 +226,6 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
                   onDeleteTap: widget.onDeleteTap,
                   onOnboardTap: widget.onOnboardTap,
                   onOffboardTap: widget.onOffboardTap,
-                  activeRoutes: widget.activeRoutes,
                   boardRefreshKey: widget.boardRefreshKey,
                 );
               }).toList(),
@@ -246,10 +248,7 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
                 ),
                 child: const Text(
                   'Add Route',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.white),
                 ),
               ),
             ),

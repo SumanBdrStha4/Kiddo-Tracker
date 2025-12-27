@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/model/route.dart';
+import 'package:kiddo_tracker/services/children_provider.dart';
 import 'package:kiddo_tracker/utils/in_range.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/web.dart';
+import 'package:provider/provider.dart';
 
 class RouteCardWidget extends StatefulWidget {
   final String childId;
@@ -17,7 +19,6 @@ class RouteCardWidget extends StatefulWidget {
   final Function(String routeId, List<RouteInfo> routes)? onDeleteTap;
   final Function(String routeId, List<RouteInfo> routes)? onOnboardTap;
   final Function(String routeId, List<RouteInfo> routes)? onOffboardTap;
-  final Map<String, bool> activeRoutes;
   final int boardRefreshKey;
 
   const RouteCardWidget({
@@ -30,7 +31,6 @@ class RouteCardWidget extends StatefulWidget {
     required this.onDeleteTap,
     this.onOnboardTap,
     this.onOffboardTap,
-    required this.activeRoutes,
     required this.boardRefreshKey,
   });
 
@@ -103,29 +103,37 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                 children: [
                   Row(
                     children: [
-                      InkWell(
-                        onTap:
-                            _getBusIconColor() == Colors.green &&
-                                widget.onBusTap != null
-                            ? () => widget.onBusTap!(
-                                widget.routeId,
-                                widget.routes,
-                              )
-                            : null,
-                        borderRadius: BorderRadius.circular(5),
-                        child: Container(
-                          padding: const EdgeInsets.all(5),
-                          margin: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: _getBusIconColor().withOpacity(0.1),
+                      ValueListenableBuilder<Map<String, bool>>(
+                        valueListenable: Provider.of<ChildrenProvider>(
+                          context,
+                          listen: false,
+                        ).activeRoutesNotifier,
+                        builder: (context, activeRoutes, child) {
+                          final color = _getBusIconColor(activeRoutes);
+                          return InkWell(
+                            onTap:
+                                color == Colors.green && widget.onBusTap != null
+                                ? () => widget.onBusTap!(
+                                    widget.routeId,
+                                    widget.routes,
+                                  )
+                                : null,
                             borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Icon(
-                            Icons.directions_bus_outlined,
-                            size: 15,
-                            color: _getBusIconColor(),
-                          ),
-                        ),
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              margin: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Icon(
+                                Icons.directions_bus_outlined,
+                                size: 15,
+                                color: color,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       Flexible(
                         fit: FlexFit.loose,
@@ -208,10 +216,11 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                               50,
                             ),
                             builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const CircularProgressIndicator(); // Loading indicator while waiting for the result
-                              } else if (snapshot.hasError) {
+                              // if (snapshot.connectionState ==
+                              //     ConnectionState.waiting) {
+                              //   return const CircularProgressIndicator(); // Loading indicator while waiting for the result
+                              // } else 
+                              if (snapshot.hasError) {
                                 return Text('Error: ${snapshot.error}');
                               } else if (snapshot.hasData &&
                                   snapshot.data == true) {
@@ -551,11 +560,11 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
     }
   }
 
-  Color _getBusIconColor() {
+  Color _getBusIconColor(Map<String, bool> activeRoutes) {
     // Check if any route in the list is active
     for (var route in widget.routes) {
       String key = '${route.routeId}_${route.oprId}';
-      if (widget.activeRoutes[key] == true) {
+      if (activeRoutes[key] == true) {
         return Colors.green; // Active
       }
     }

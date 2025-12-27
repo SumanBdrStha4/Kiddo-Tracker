@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:kiddo_tracker/pages/activityscreen.dart';
 import 'package:kiddo_tracker/pages/addchildscreen.dart';
 import 'package:kiddo_tracker/pages/changedactivity.dart';
@@ -39,6 +38,18 @@ class _MainScreenState extends State<MainScreen> {
     super.dispose();
   }
 
+  Future<bool> _onWillPop() async {
+    final now = DateTime.now();
+    if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > Duration(seconds: 2)) {
+      _lastBackPressTime = now;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Press back again to exit')),
+      );
+      return false;
+    }
+    return true; // Exit app/page
+  }
+
   @override
   Widget build(BuildContext context) {
     // Ensure _selectedIndex is within bounds
@@ -49,16 +60,7 @@ class _MainScreenState extends State<MainScreen> {
       canPop: false,
       onPopInvoked: (didPop) {
         if (didPop) return;
-        final now = DateTime.now();
-        if (_lastBackPressTime == null ||
-            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
-          _lastBackPressTime = now;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Press back again to exit')),
-          );
-        } else {
-          SystemNavigator.pop();
-        }
+        _onWillPop();
       },
       child: Scaffold(
         appBar: AppBar(

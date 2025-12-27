@@ -15,11 +15,29 @@ class ChildrenProvider with ChangeNotifier {
   MQTTService? _mqttService;
   final List<String> _subscribedTopics = [];
 
+  // Granular notifiers for efficient UI updates
+  final Map<String, ValueNotifier<Child>> _childNotifiers = {};
+  final Map<String, ValueNotifier<SubscriptionPlan?>> _subscriptionNotifiers =
+      {};
+  final ValueNotifier<Map<String, bool>> _activeRoutesNotifier = ValueNotifier(
+    {},
+  );
+  final ValueNotifier<List<Map<String, dynamic>>> _activitiesNotifier =
+      ValueNotifier([]);
+
   List<Child> get children => _children;
   Map<String, SubscriptionPlan> get studentSubscriptions =>
       _studentSubscriptions;
   List<Map<String, dynamic>> get activitiesList => activities;
   MQTTService? get mqttService => _mqttService;
+
+  Map<String, ValueNotifier<Child>> get childNotifiers => _childNotifiers;
+  Map<String, ValueNotifier<SubscriptionPlan?>> get subscriptionNotifiers =>
+      _subscriptionNotifiers;
+  ValueNotifier<Map<String, bool>> get activeRoutesNotifier =>
+      _activeRoutesNotifier;
+  ValueNotifier<List<Map<String, dynamic>>> get activitiesNotifier =>
+      _activitiesNotifier;
 
   void setMqttService(MQTTService service) {
     _mqttService = service;
@@ -37,6 +55,14 @@ class ChildrenProvider with ChangeNotifier {
           map['student_id'] as String: SubscriptionPlan.fromJson(map),
       };
       Logger().i('Subscriptions fetched: $_studentSubscriptions');
+
+      // Initialize granular notifiers
+      for (var child in _children) {
+        _childNotifiers[child.studentId] = ValueNotifier(child);
+        _subscriptionNotifiers[child.studentId] = ValueNotifier(
+          _studentSubscriptions[child.studentId],
+        );
+      }
 
       notifyListeners();
     } catch (e) {
@@ -149,10 +175,16 @@ class ChildrenProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void updateActiveRoutes(String key, bool isActive) {
+    _activeRoutesNotifier.value = Map.from(_activeRoutesNotifier.value)
+      ..[key] = isActive;
+  }
+
   Future<void> updateActivity() async {
     try {
       final activityMaps = await _sqfliteHelper.getActivities();
       activities = activityMaps.map((map) => map).toList();
+      _activitiesNotifier.value = activities;
       notifyListeners();
     } catch (e) {
       Logger().e('Error updating children: $e');
