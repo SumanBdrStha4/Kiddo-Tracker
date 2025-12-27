@@ -84,7 +84,6 @@ class _HomeScreenState extends State<HomeScreen>
   Map<String, bool> activeRoutes = {};
   List<String> stopArrivalTimes = [];
   int _boardRefreshKey = 0;
-  late StreamSubscription<String> _streamSubscription;
 
   String _mqttStatus = 'Disconnected';
 
@@ -168,7 +167,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
-    _streamSubscription.cancel();
     _controller.dispose();
     super.dispose();
   }

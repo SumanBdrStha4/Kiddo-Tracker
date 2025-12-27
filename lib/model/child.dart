@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:kiddo_tracker/model/route.dart';
+import 'package:logger/logger.dart';
 
 class Child {
+  static final Logger logger = Logger();
   final String studentId;
   final String name;
   final String nickname;
@@ -47,7 +49,9 @@ class Child {
                 )
                 .toList();
           }
-        } catch (_) {}
+        } catch (e) {
+          logger.e('Error decoding route_info string: $e');
+        }
       } else if (json['route_info'] is List) {
         routes = (json['route_info'] as List)
             .map<RouteInfo>(
@@ -56,6 +60,26 @@ class Child {
               ),
             )
             .toList();
+      }
+    }
+
+    logger.i(
+      'Child.fromJson: route_info parsed - routes length: ${routes.length}, routes: $routes',
+    );
+
+    List<String> tspIds = [];
+    if (json['tsp_id'] != null) {
+      if (json['tsp_id'] is String) {
+        try {
+          var decoded = jsonDecode(json['tsp_id']);
+          if (decoded is List) {
+            tspIds = List<String>.from(decoded);
+          }
+        } catch (e) {
+          logger.e('Error decoding tsp_id string: $e');
+        }
+      } else if (json['tsp_id'] is List) {
+        tspIds = List<String>.from(json['tsp_id']);
       }
     }
 
@@ -72,7 +96,7 @@ class Child {
       gender: json['gender'] ?? '',
       tagId: json['tag_id'] ?? '',
       routeInfo: routes,
-      tsp_id: json['tsp_id'] is String ? [json['tsp_id']] : json['tsp_id'],
+      tsp_id: tspIds,
       status: json['status'] is int
           ? json['status']
           : int.tryParse(json['status'].toString()) ?? 0,
@@ -84,23 +108,29 @@ class Child {
 
   get student_id => studentId;
 
-  Map<String, dynamic> toJson() => {
-    'student_id': studentId,
-    'name': name,
-    'nickname': nickname,
-    'school': school,
-    'class_name': class_name,
-    'rollno': rollno,
-    'age': age,
-    'gender': gender,
-    'tag_id': tagId,
-    'route_info': jsonEncode(routeInfo.map((e) => e.toJson()).toList()),
-    'tsp_id': jsonEncode(tsp_id.map((e) => e).toList()),
-    'status': status,
-    'onboard_status': onboard_status,
-  };
+  Map<String, dynamic> toJson() {
+    final routeInfoJson = jsonEncode(routeInfo.map((e) => e.toJson()).toList());
+    logger.i(
+      'Child.toJson: route_info being saved - length: ${routeInfo.length}, json: $routeInfoJson',
+    );
+    return {
+      'student_id': studentId,
+      'name': name,
+      'nickname': nickname,
+      'school': school,
+      'class_name': class_name,
+      'rollno': rollno,
+      'age': age,
+      'gender': gender,
+      'tag_id': tagId,
+      'route_info': routeInfoJson,
+      'tsp_id': jsonEncode(tsp_id.map((e) => e).toList()),
+      'status': status,
+      'onboard_status': onboard_status,
+    };
+  }
 
-    @override
+  @override
   String toString() {
     return toJson().toString();
   }

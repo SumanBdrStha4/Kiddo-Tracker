@@ -133,6 +133,7 @@ class ChildrenService {
             status: student['status'],
             onboard_status: student['onboard_status'],
           );
+          Logger().i(child.toJson().toString());
           // Store children data
           children.add(child);
           // Store child data to sqflite

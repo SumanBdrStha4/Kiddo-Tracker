@@ -29,15 +29,21 @@ class RouteInfo {
     return RouteInfo(
       routeId: json['route_id'] ?? '',
       routeName: json['route_name'] ?? '',
-      routeType: int.parse(json['type'] ?? '0'),
+      routeType: json['route_type'] is int
+          ? json['route_type']
+          : int.parse(json['route_type']?.toString() ?? '0'),
       startTime: json['start_time'] ?? '',
       stopArrivalTime: json['stop_arrival_time'] ?? '',
       stopName: json['stop_name'] ?? '',
       stopLocation: json['location'] ?? '',
       schoolLocation: json['school_location'] ?? '',
-      oprId: int.parse(json['oprid'] ?? '0'),
+      oprId: json['oprid'] is int
+          ? json['oprid']
+          : int.parse(json['oprid']?.toString() ?? '0'),
       vehicleId: json['vehicle_id'] ?? '',
-      stopId: int.parse(json['stop_id'] ?? '0'),
+      stopId: json['stop_id'] is int
+          ? json['stop_id']
+          : int.parse(json['stop_id']?.toString() ?? '0'),
     );
   }
 
