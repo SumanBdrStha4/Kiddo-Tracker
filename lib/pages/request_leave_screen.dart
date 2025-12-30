@@ -7,15 +7,17 @@ import 'package:logger/logger.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class RequestLeaveScreen extends StatefulWidget {
-  final Map<String, dynamic> child;
+  final Map<String, dynamic>? child;
   final String? oprId;
   final String? routeId;
+  final String? childId;
 
   const RequestLeaveScreen({
     super.key,
     required this.child,
     this.oprId,
     this.routeId,
+    this.childId,
   });
 
   @override
@@ -28,6 +30,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
   DateTime? _selectedDay;
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
+  String? child_id;
   Map<DateTime, String> _holidayTypes = {};
   final TextEditingController _reasonController = TextEditingController();
 
@@ -51,6 +54,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
           routeId != null &&
           userId != null &&
           sessionId != null) {
+        child_id = widget.childId;
         await callAPItoFetch(
           oprId,
           routeId,
@@ -59,8 +63,9 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
           allHolidayTypes,
         );
       } else if (userId != null && sessionId != null) {
+        child_id = widget.child?['name'];
         // Get the list of routes route_id and oprid from child route_info and print the output
-        final routeInfoJson = widget.child['route_info'] ?? '[]';
+        final routeInfoJson = widget.child?['route_info'] ?? '[]';
         final List<dynamic> routeInfo = json.decode(routeInfoJson);
 
         for (var route in routeInfo) {
@@ -68,8 +73,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
         }
         print('Route info: $routeInfo');
         for (var route in routeInfo) {
-          final String opId = route['oprid'] ?? '';
-          final String routeId = route['route_id'] ?? '';
+          final String opId = route['oprid'].toString();
+          final String routeId = route['route_id'].toString();
           print('Fetching holidays for opId: $opId, routeId: $routeId');
           await callAPItoFetch(
             opId,
@@ -125,7 +130,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Request Leave for ${widget.child['name']}')),
+      appBar: AppBar(title: Text('Request Leave for ${child_id ?? "Child"}')),
       body: Column(
         children: [
           TableCalendar(
@@ -186,6 +191,9 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
                       break;
                     case 'weekoff':
                       color = Colors.red.shade100;
+                      break;
+                    case 'defultHoliday':
+                      color = Colors.purple.shade100;
                       break;
                     default:
                       color = Colors.grey.shade100;
@@ -324,44 +332,52 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
       if (userId != null && sessionId != null) {
         String startDate = _rangeStart!.toIso8601String().split('T').first;
         String endDate = _rangeEnd!.toIso8601String().split('T').first;
-        String tspId = widget.child['tsp_id']
-            .toString()
-            .replaceAll('["', '')
-            .replaceAll('"]', '')
-            .trim();
-        print(widget.child['tsp_id'].runtimeType);
-        Logger().d('Submitting leave request from $startDate to $endDate');
-        Logger().d('Child ID: ${widget.child['student_id']}, TSP ID: $tspId');
-        Logger().d('User ID: $userId, Session ID: $sessionId');
-        final response = await ApiService.sendAbsentDays(
-          startDate,
-          endDate,
-          tspId,
-          widget.child['student_id'] ?? '',
-          sessionId,
-          userId,
-        );
-        final data = response.data;
-        Logger().d('Leave request response: $data');
-        if (data[0]['result'] == 'ok') {
-          // For now, just show a success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Leave request submitted successfully!'),
-            ),
-          );
+        //convert tsp_id string to list
+        String StringTSP = widget.child?['tsp_id'] ?? '';
+        List<String> tspId = List<String>.from(jsonDecode(StringTSP));
+        Logger().d('TSP ID raw value: ${widget.child?['tsp_id']}');
 
-          // Clear the form
-          setState(() {
-            _rangeStart = null;
-            _rangeEnd = null;
-            _reasonController.clear();
-          });
-        } else {
-          String errorData = data[1]['data'];
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: $errorData')));
+        //check the length of tspId and run the loop.
+        for (int i = 0; i < tspId.length; i++) {
+          String singleTSP = tspId[i];
+          Logger().d('Submitting leave request from $startDate to $endDate');
+          Logger().d(
+            'Child ID: ${widget.child?['student_id']}, TSP ID: $singleTSP',
+          );
+          Logger().d('User ID: $userId, Session ID: $sessionId');
+
+          final response = await ApiService.sendAbsentDays(
+            startDate,
+            endDate,
+            singleTSP,
+            widget.child?['student_id'] ?? '',
+            sessionId,
+            userId,
+          );
+          final data = response.data;
+          Logger().d('Leave request response: $data');
+          if (data[0]['result'] == 'ok') {
+            // For now, just show a success message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Leave request submitted successfully to $singleTSP!',
+                ),
+              ),
+            );
+
+            // Clear the form
+            setState(() {
+              _rangeStart = null;
+              _rangeEnd = null;
+              _reasonController.clear();
+            });
+          } else {
+            String errorData = data[1]['data'];
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Error: $errorData')));
+          }
         }
       }
     } catch (e) {
@@ -474,6 +490,22 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
             offDays,
           );
           allHolidayTypes.addAll(weeklyOffs);
+        }
+
+        // defultHoliday
+        //make each sunday as default holiday
+        DateTime startDate = DateTime.utc(2020, 1, 1);
+        DateTime endDate = DateTime.utc(2030, 12, 31);
+        for (
+          DateTime date = startDate;
+          date.isBefore(endDate) || date.isAtSameMomentAs(endDate);
+          date = date.add(const Duration(days: 1))
+        ) {
+          if (date.weekday == DateTime.sunday) {
+            allHolidayTypes.addAll({
+              DateTime(date.year, date.month, date.day): 'defultHoliday',
+            });
+          }
         }
       }
     }

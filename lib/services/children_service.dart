@@ -17,6 +17,7 @@ class ChildrenService {
   Map<String, bool> activeRoutes = {};
   List<String> _topics = [];
   List<dynamic> studentInfo = [];
+  List<dynamic> absentDays = [];
 
   Future<Map<String, dynamic>> fetchChildren() async {
     Logger().i('Fetching children...');
@@ -113,7 +114,6 @@ class ChildrenService {
               return RouteInfo.fromJson(route);
             }).toList();
             //cnvert the studentRouteInfo to string
-
           }
           //set in Child
           Child child = Child(
@@ -159,6 +159,37 @@ class ChildrenService {
         }
       }
       _topics = topics;
+      //fetch the student absent days from server and store in sqflite base on tsp_id
+      //get the usernumber and sesion
+      String userId = userInfo[0]['userid'].toString();
+      String sessionId = userInfo[0]['sessionid'].toString();
+      for (var child in children) {
+        for (var tspId in child.tsp_id) {
+          final response = await ApiService.fetchStudentAbsentDays(
+            userId,
+            sessionId,
+            tspId,
+            child.studentId,
+          );
+          final data = response.data;
+          Logger().i(data);
+          // Store absent days data in absentDays list
+          absentDays.addAll(data[1]['data'] as List<dynamic>? ?? []);
+          if (data is List && data.isNotEmpty && data[0]['result'] == 'ok') {
+            final List absentDaysData = List.from(
+              data[1]['data'] as List<dynamic>? ?? [],
+            );
+            for (var absentDay in absentDaysData) {
+              await _sqfliteHelper.insertAbsentDay(
+                absentDay['student_id'].toString(),
+                absentDay['start_date'].toString(),
+                absentDay['end_date'].toString(),
+                tspId,
+              );
+            }
+          }
+        }
+      }
 
       // Clear and assign activeRoutes global variable
       activeRoutes.clear();
@@ -171,6 +202,11 @@ class ChildrenService {
           'studentSubscriptions': studentSubscriptions,
           'activeRoutes': activeRoutes,
           'parent': parent,
+          'topics': _topics,
+          'studentInfo': studentInfo,
+          'allRouteInfo': allParsedRouteInfo,
+          'userInfo': userInfo,
+          'absentDays': absentDays,
         },
       };
     } else {

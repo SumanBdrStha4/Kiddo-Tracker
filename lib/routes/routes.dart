@@ -55,11 +55,18 @@ class AppRoutes {
               AddChildRoutePage(nickName: childName, stdId: childId),
         );
       case requestLeave:
-        final child = settings.arguments as Map<String, dynamic>;
-        final oprId = child['oprId'];
-        final routeId = child['routeId'];
+        final arguments = settings.arguments as Map;
+        final Map<String, dynamic>? child = arguments['child'];
+        final String? oprId = arguments['oprId'];
+        final String? routeId = arguments['routeId'];
+        final String? childId = arguments['childId'];
         return MaterialPageRoute(
-          builder: (_) => RequestLeaveScreen(child: child, oprId: oprId, routeId: routeId),
+          builder: (_) => RequestLeaveScreen(
+            child: child,
+            oprId: oprId,
+            routeId: routeId,
+            childId: childId,
+          ),
         );
       default:
         return MaterialPageRoute(

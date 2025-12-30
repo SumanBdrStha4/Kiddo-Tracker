@@ -371,6 +371,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                           arguments: {
                             'oprId': oprId,
                             'routeId': routeId,
+                            'childId': widget.childId,
                           },
                         ),
                       ),

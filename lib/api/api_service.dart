@@ -288,4 +288,17 @@ class ApiService {
       data: {'passkey': "St3nM4Dat"},
     );
   }
+
+  static Future<dynamic> fetchStudentAbsentDays(String userId, String session, String tspId, String studentId) async {
+    return await ApiManager().post(
+      'ktustdoffdays/',
+      data: {
+        'userid': userId,
+        'sessionid': session,
+        "tsp_id": tspId,
+        "student_id": studentId,
+      },
+    );
+  }
+
 }

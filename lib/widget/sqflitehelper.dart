@@ -131,6 +131,20 @@ class SqfliteHelper {
         is_read INTEGER DEFAULT 0
       )
     ''');
+
+    //absentDays table
+    await db.execute('''
+      CREATE TABLE absentDays(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id TEXT,
+        tsp_id TEXT,
+        start_date TEXT,
+        end_date TEXT,
+        reason TEXT,
+        status INTEGER,
+        applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -542,6 +556,34 @@ class SqfliteHelper {
     final dbClient = await db;
     dbClient.close();
     _db = null;
+  }
+
+  //absentDays insert
+  Future<void> insertAbsentDay(
+    String studentId,
+    String startDate,
+    String endDate,
+    String tspId,
+  ) async {
+    final dbClient = await db;
+    await dbClient.insert('absentDays', {
+      'student_id': studentId,
+      'start_date': startDate,
+      'end_date': endDate,
+      'tsp_id': tspId,
+    });
+  }
+
+  //get absentDays by studentId
+  Future<List<Map<String, dynamic>>> getAbsentDaysByStudentId(
+    String studentId,
+  ) async {
+    final dbClient = await db;
+    return await dbClient.query(
+      'absentDays',
+      where: 'student_id = ?',
+      whereArgs: [studentId],
+    );
   }
 
   // studentSubscriptions CRUD

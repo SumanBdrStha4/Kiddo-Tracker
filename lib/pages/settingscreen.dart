@@ -500,7 +500,15 @@ class _SettingScreenState extends State<SettingScreen> {
   void requestLeave(Map<String, dynamic> child) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => RequestLeaveScreen(child: child)),
+      // MaterialPageRoute(builder: (context) => RequestLeaveScreen(child: child)),
+      AppRoutes.generateRoute(
+        RouteSettings(
+          name: AppRoutes.requestLeave,
+          arguments: {
+            'child': child,
+          },
+        ),
+      ),
     );
   }
 
