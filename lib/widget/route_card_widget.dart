@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/model/route.dart';
+import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
 import 'package:kiddo_tracker/utils/in_range.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
@@ -140,7 +141,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                         child: Column(
                           children: [
                             Text(
-                              '${widget.routes.first.routeName} starts at $startTime',
+                              '${widget.routes.first.routeName} starts at ${widget.routes.first.stopArrivalTime}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -150,7 +151,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                             const SizedBox(height: 4),
                             //display stop location arrival time
                             Text(
-                              'Stop Arrival Time: ${widget.routes.first.stopArrivalTime}',
+                              'Stop Arrival Time: $startTime',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w400,
@@ -219,7 +220,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                               // if (snapshot.connectionState ==
                               //     ConnectionState.waiting) {
                               //   return const CircularProgressIndicator(); // Loading indicator while waiting for the result
-                              // } else 
+                              // } else
                               if (snapshot.hasError) {
                                 return Text('Error: ${snapshot.error}');
                               } else if (snapshot.hasData &&
@@ -348,6 +349,44 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                       Icons.delete,
                       size: 15,
                       color: Color.fromARGB(255, 255, 136, 127),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                //title holiday icon and on click show holiday details of current route id.
+                InkWell(
+                  onTap: () {
+                    //get oprid and route id
+                    String oprId = widget.routes.first.oprId.toString();
+                    String routeId = widget.routes.first.routeId;
+                    Logger().d(
+                      'Holiday icon tapped for oprId: $oprId, routeId: $routeId',
+                    );
+                    //navigate to RequestLeaveScreen and pass oprId and routeId
+                    Navigator.push(
+                      context,
+                      AppRoutes.generateRoute(
+                        RouteSettings(
+                          name: AppRoutes.requestLeave,
+                          arguments: {
+                            'oprId': oprId,
+                            'routeId': routeId,
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.holiday_village,
+                      size: 15,
+                      color: Colors.orange,
                     ),
                   ),
                 ),

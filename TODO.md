@@ -1,2 +1,4 @@
-- [x] Add Logger().i('Fetched children: ${Provider.of<ChildrenProvider>(context, listen: false).children}') after fetching children in \_fetchChildrenFromDb.
-- [x] Add Logger().i('Stop locations: $stopLocations') after building the stopLocations list in \_onLocationTap.
+# TODO for Modifying Default Holiday in Request Leave Screen
+
+- [x] Change the color for 'weekoff' holidays from red to pink in the calendar builder
+- [ ] Update the legend to reflect the new pink color for Weekly Off

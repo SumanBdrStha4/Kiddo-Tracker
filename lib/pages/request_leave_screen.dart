@@ -8,8 +8,15 @@ import 'package:table_calendar/table_calendar.dart';
 
 class RequestLeaveScreen extends StatefulWidget {
   final Map<String, dynamic> child;
+  final String? oprId;
+  final String? routeId;
 
-  const RequestLeaveScreen({super.key, required this.child});
+  const RequestLeaveScreen({
+    super.key,
+    required this.child,
+    this.oprId,
+    this.routeId,
+  });
 
   @override
   _RequestLeaveScreenState createState() => _RequestLeaveScreenState();
@@ -35,104 +42,47 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
       final String? userId = await SharedPreferenceHelper.getUserNumber();
       final String? sessionId = await SharedPreferenceHelper.getUserSessionId();
       print('Fetching holidays for userId: $userId, sessionId: $sessionId');
-      // Get the list of routes route_id and oprid from child route_info and print the output
-      final routeInfoJson = widget.child['route_info'] ?? '[]';
-      final List<dynamic> routeInfo = json.decode(routeInfoJson);
+      //check if routeId and oprId are passed from previous screen
+      final String? oprId = widget.oprId;
+      final String? routeId = widget.routeId;
+      print('Using oprId: $oprId, routeId: $routeId');
+      Map<DateTime, String> allHolidayTypes = {};
+      if (oprId != null &&
+          routeId != null &&
+          userId != null &&
+          sessionId != null) {
+        await callAPItoFetch(
+          oprId,
+          routeId,
+          userId,
+          sessionId,
+          allHolidayTypes,
+        );
+      } else if (userId != null && sessionId != null) {
+        // Get the list of routes route_id and oprid from child route_info and print the output
+        final routeInfoJson = widget.child['route_info'] ?? '[]';
+        final List<dynamic> routeInfo = json.decode(routeInfoJson);
 
-      for (var route in routeInfo) {
-        print('Route ID: ${route['route_id']}, OPR ID: ${route['oprid']}');
-      }
-
-      print('Route info: $routeInfo');
-      if (userId != null && sessionId != null && routeInfo.isNotEmpty) {
-        Map<DateTime, String> allHolidayTypes = {};
+        for (var route in routeInfo) {
+          print('Route ID: ${route['route_id']}, OPR ID: ${route['oprid']}');
+        }
+        print('Route info: $routeInfo');
         for (var route in routeInfo) {
           final String opId = route['oprid'] ?? '';
           final String routeId = route['route_id'] ?? '';
           print('Fetching holidays for opId: $opId, routeId: $routeId');
-          if (opId.isNotEmpty && routeId.isNotEmpty) {
-            final response = await ApiService.fetchHolidays(
-              userId,
-              opId,
-              routeId,
-              // "6",
-              // "OD36895900001",
-              sessionId,
-            );
-            final data = response.data;
-            print('Fetched holidays for opId $opId: $data');
-            if (data[0]['result'] == 'ok') {
-              // tsp_offdata
-              final tspOffData = data[1]['tsp_offdata'];
-              if (tspOffData is List && tspOffData.isNotEmpty) {
-                for (var holiday in tspOffData) {
-                  DateTime start = DateTime.parse(holiday['start_date']);
-                  DateTime end = DateTime.parse(holiday['end_date']);
-                  // String tspId = holiday['tsp_id'];
-                  for (
-                    DateTime date = start;
-                    date.isBefore(end.add(Duration(days: 1)));
-                    date = date.add(Duration(days: 1))
-                  ) {
-                    allHolidayTypes[DateTime(date.year, date.month, date.day)] =
-                        'tsp';
-                  }
-                }
-              }
-
-              // route_offdata
-              final routeOffData = data[2]['route_offdata'];
-              if (routeOffData is List && routeOffData.isNotEmpty) {
-                for (var holiday in routeOffData) {
-                  DateTime start = DateTime.parse(holiday['start_date']);
-                  DateTime end = DateTime.parse(holiday['end_date']);
-                  for (
-                    DateTime date = start;
-                    date.isBefore(end.add(Duration(days: 1)));
-                    date = date.add(Duration(days: 1))
-                  ) {
-                    allHolidayTypes[DateTime(date.year, date.month, date.day)] =
-                        'route';
-                  }
-                }
-              }
-
-              // opr_offdata
-              final oprOffData = data[3]['opr_offdata'];
-              if (oprOffData is List && oprOffData.isNotEmpty) {
-                for (var holiday in oprOffData) {
-                  DateTime start = DateTime.parse(holiday['start_date']);
-                  DateTime end = DateTime.parse(holiday['end_date']);
-                  for (
-                    DateTime date = start;
-                    date.isBefore(end.add(Duration(days: 1)));
-                    date = date.add(Duration(days: 1))
-                  ) {
-                    allHolidayTypes[DateTime(date.year, date.month, date.day)] =
-                        'opr';
-                  }
-                }
-              }
-
-              // weekoff
-              final weekOffData = data[4]['weekoff'];
-              if (weekOffData is List && weekOffData.isNotEmpty) {
-                final String offDaysString = weekOffData[0]['off_data'] ?? '';
-                final List<String> offDays = offDaysString
-                    .split(', ')
-                    .map((day) => day.trim())
-                    .toList();
-                final Map<DateTime, String> weeklyOffs =
-                    _generateWeeklyOffDates(offDays);
-                allHolidayTypes.addAll(weeklyOffs);
-              }
-            }
-          }
+          await callAPItoFetch(
+            opId,
+            routeId,
+            userId,
+            sessionId,
+            allHolidayTypes,
+          );
         }
-        setState(() {
-          _holidayTypes = allHolidayTypes;
-        });
       }
+      setState(() {
+        _holidayTypes = allHolidayTypes;
+      });
     } catch (e) {
       Logger().e('Error fetching holidays: $e');
     }
@@ -439,5 +389,93 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
         Text(s),
       ],
     );
+  }
+
+  Future<void> callAPItoFetch(
+    String opId,
+    String routeId,
+    String userId,
+    String sessionId,
+    Map<DateTime, String> allHolidayTypes,
+  ) async {
+    if (opId.isNotEmpty && routeId.isNotEmpty) {
+      final response = await ApiService.fetchHolidays(
+        userId,
+        opId,
+        routeId,
+        // "6",
+        // "OD36895900001",
+        sessionId,
+      );
+      final data = response.data;
+      print('Fetched holidays for opId $opId: $data');
+      if (data[0]['result'] == 'ok') {
+        // tsp_offdata
+        final tspOffData = data[1]['tsp_offdata'];
+        if (tspOffData is List && tspOffData.isNotEmpty) {
+          for (var holiday in tspOffData) {
+            DateTime start = DateTime.parse(holiday['start_date']);
+            DateTime end = DateTime.parse(holiday['end_date']);
+            // String tspId = holiday['tsp_id'];
+            for (
+              DateTime date = start;
+              date.isBefore(end.add(Duration(days: 1)));
+              date = date.add(Duration(days: 1))
+            ) {
+              allHolidayTypes[DateTime(date.year, date.month, date.day)] =
+                  'tsp';
+            }
+          }
+        }
+
+        // route_offdata
+        final routeOffData = data[2]['route_offdata'];
+        if (routeOffData is List && routeOffData.isNotEmpty) {
+          for (var holiday in routeOffData) {
+            DateTime start = DateTime.parse(holiday['start_date']);
+            DateTime end = DateTime.parse(holiday['end_date']);
+            for (
+              DateTime date = start;
+              date.isBefore(end.add(Duration(days: 1)));
+              date = date.add(Duration(days: 1))
+            ) {
+              allHolidayTypes[DateTime(date.year, date.month, date.day)] =
+                  'route';
+            }
+          }
+        }
+
+        // opr_offdata
+        final oprOffData = data[3]['opr_offdata'];
+        if (oprOffData is List && oprOffData.isNotEmpty) {
+          for (var holiday in oprOffData) {
+            DateTime start = DateTime.parse(holiday['start_date']);
+            DateTime end = DateTime.parse(holiday['end_date']);
+            for (
+              DateTime date = start;
+              date.isBefore(end.add(Duration(days: 1)));
+              date = date.add(Duration(days: 1))
+            ) {
+              allHolidayTypes[DateTime(date.year, date.month, date.day)] =
+                  'opr';
+            }
+          }
+        }
+
+        // weekoff
+        final weekOffData = data[4]['weekoff'];
+        if (weekOffData is List && weekOffData.isNotEmpty) {
+          final String offDaysString = weekOffData[0]['off_data'] ?? '';
+          final List<String> offDays = offDaysString
+              .split(', ')
+              .map((day) => day.trim())
+              .toList();
+          final Map<DateTime, String> weeklyOffs = _generateWeeklyOffDates(
+            offDays,
+          );
+          allHolidayTypes.addAll(weeklyOffs);
+        }
+      }
+    }
   }
 }

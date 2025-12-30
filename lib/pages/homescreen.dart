@@ -75,6 +75,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   bool _hasInitialized = false;
 
+  int _boardRefreshKey = 0;
+
   late final AnimationController _controller;
   late final Animation<double> _animation;
 
@@ -794,7 +796,8 @@ class _HomeScreenState extends State<HomeScreen>
         /// Extract oprid + route_id pairs from local DB
         final routeIds = <String>{};
         final oprIds = <String>{};
-        _extractLocalRoutePairs(tsp['routes'], routeIds, oprIds);
+        final stopName = <String>{};
+        _extractLocalRoutePairs(tsp['routes'], routeIds, oprIds, stopName);
         Logger().i(routeIds);
 
         /// Fetch Remote Route List From API
@@ -804,6 +807,7 @@ class _HomeScreenState extends State<HomeScreen>
           sessionId: sessionId,
           routeIds: routeIds,
           oprIds: oprIds,
+          stopName: stopName,
         );
       }
     } catch (e) {
@@ -818,6 +822,7 @@ class _HomeScreenState extends State<HomeScreen>
     required String? sessionId,
     required Set<String> routeIds,
     required Set<String> oprIds,
+    required Set<String> stopName,
   }) async {
     try {
       final response = await ApiManager().post(
@@ -837,7 +842,7 @@ class _HomeScreenState extends State<HomeScreen>
           final routeId = route['route_id'].toString().trim();
 
           Logger().i(
-            "List of oprid and route_id from local DB → oprid: $oprIds | route_id: $routeIds",
+            "List of oprid and route_id from local DB → oprid: $oprIds | route_id: $routeIds | stop_name: $stopName",
           );
           Logger().i("API Route → oprid: $oprid | route_id: $routeId");
 
@@ -846,11 +851,12 @@ class _HomeScreenState extends State<HomeScreen>
           Logger().i("Match result: $isMatch");
           if (isMatch) {
             Logger().i("MATCHED → Saving oprid: $oprid | route_id: $routeId");
-            await _saveRouteToDatabase(route);
+            /*may be for map */
+            // await _saveRouteToDatabase(route);
             Logger().i(
               "Updating children route_info for tspId: $tspId | route_id: $routeId",
             );
-            await _updateChildrenRouteInfo(tspId, route);
+            await _updateChildrenRouteInfo(tspId, stopName, route);
           } else {
             Logger().i("SKIPPED → oprid: $oprid | route_id: $routeId");
           }
@@ -864,6 +870,7 @@ class _HomeScreenState extends State<HomeScreen>
   //
   Future<void> _updateChildrenRouteInfo(
     String tspId,
+    Set<String> stopName,
     Map<String, dynamic> route,
   ) async {
     final childrenList = await _sqfliteHelper.getChildren();
@@ -883,18 +890,22 @@ class _HomeScreenState extends State<HomeScreen>
         if (!tspIdList.contains(tspId)) continue; // Match tspId directly
 
         String? lastStopLocation = _extractLastStopLocation(route['stop_list']);
+        String? routeTimeByStopName = _getRouteTimeByStopName(
+          route['stop_details'],
+          stopName,
+        );
 
-        if (lastStopLocation != null && route['timing'] != null) {
+        if (lastStopLocation != null && routeTimeByStopName != null) {
           //print last stop location and timing
           Logger().i(
-            'Updating child $studentId route_info with school_location: $lastStopLocation and start_time: ${route['timing']}',
+            'Updating child $studentId route_info with school_location: $lastStopLocation and start_time: $routeTimeByStopName',
           );
           // Update only the fields we need: school_location and start_time
           await _sqfliteHelper.updateChildRouteInfo(
             studentId,
             tspId, // tspId
             route['route_id'], // route_id
-            route['timing'], // start_time
+            routeTimeByStopName, // start_time
             lastStopLocation, // school_location
           );
           Logger().i('Updated child route_info → studentId: $studentId');
@@ -995,12 +1006,14 @@ class _HomeScreenState extends State<HomeScreen>
     List<dynamic> routes,
     Set<String> routeIds,
     Set<String> oprIds,
+    Set<String> stopName,
   ) {
     for (var route in routes) {
       routeIds.add(route['route_id']);
       oprIds.add(route['oprid'].toString());
+      stopName.add(route['stop_name']);
       Logger().i(
-        'Local route → oprid: ${route['oprid'].toString()} | route_id: ${route['route_id']}',
+        'Local route → oprid: ${route['oprid'].toString()} | route_id: ${route['route_id']} | stop_name: ${route['stop_name']}',
       );
     }
   }
@@ -1098,5 +1111,28 @@ class _HomeScreenState extends State<HomeScreen>
     } else {
       Logger().e('Error fetching notifications: ${result['error']}');
     }
+  }
+  
+  String? _getRouteTimeByStopName(route, Set<String> stopName) {
+    try {
+      final List<dynamic> stopDetails = jsonDecode(route);
+      for (var detail in stopDetails) {
+        if (detail is Map<String, dynamic>) {
+          String key = detail.keys.first;
+          List<dynamic> values = detail[key];
+          if (values.length >= 3) {
+            String stopNameValue = values[0].toString().trim();
+            if (stopName.contains(stopNameValue)) {
+              String arrivalTime = values[1].toString();
+              String departureTime = values[2].toString();
+              return '($arrivalTime - $departureTime)';
+            }
+          }
+        }
+      }
+    } catch (e) {
+      Logger().e('Error extracting route time by stop name: $e');
+    }
+    return null;
   }
 }

@@ -8,6 +8,8 @@ import 'package:kiddo_tracker/pages/signupscreen.dart';
 import 'package:kiddo_tracker/pages/forgetpinscreen.dart';
 import 'package:kiddo_tracker/pages/subscriptionscreen.dart';
 
+import '../pages/request_leave_screen.dart';
+
 class AppRoutes {
   static const String login = '/';
   static const String otp = '/otp';
@@ -17,6 +19,7 @@ class AppRoutes {
   static const String main = '/main';
   static const String subscribe = '/subscribe';
   static const String addRoute = '/addroute';
+  static const String requestLeave = '/requestLeave';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -32,8 +35,10 @@ class AppRoutes {
       case forgetPin:
         return MaterialPageRoute(builder: (_) => ForgetPINScreen());
       case signup:
-      final mobileNumber = settings.arguments as String;
-        return MaterialPageRoute(builder: (_) =>  SignUpScreen(mobile: mobileNumber));
+        final mobileNumber = settings.arguments as String;
+        return MaterialPageRoute(
+          builder: (_) => SignUpScreen(mobile: mobileNumber),
+        );
       case main:
         return MaterialPageRoute(builder: (_) => const MainScreen());
       case subscribe:
@@ -48,6 +53,13 @@ class AppRoutes {
         return MaterialPageRoute(
           builder: (_) =>
               AddChildRoutePage(nickName: childName, stdId: childId),
+        );
+      case requestLeave:
+        final child = settings.arguments as Map<String, dynamic>;
+        final oprId = child['oprId'];
+        final routeId = child['routeId'];
+        return MaterialPageRoute(
+          builder: (_) => RequestLeaveScreen(child: child, oprId: oprId, routeId: routeId),
         );
       default:
         return MaterialPageRoute(
