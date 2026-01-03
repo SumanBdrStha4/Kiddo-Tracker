@@ -190,4 +190,14 @@ class ChildrenProvider with ChangeNotifier {
       Logger().e('Error updating children: $e');
     }
   }
+
+  getChildNameById(String childId) {
+    try {
+      final child = _children.firstWhere((child) => child.studentId == childId);
+      return child.name;
+    } catch (e) {
+      Logger().e('Error getting child name by ID: $e');
+      return "";
+    }
+  }
 }

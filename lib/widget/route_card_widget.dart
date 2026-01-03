@@ -372,6 +372,10 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                             'oprId': oprId,
                             'routeId': routeId,
                             'childId': widget.childId,
+                            'childName': Provider.of<ChildrenProvider>(
+                              context,
+                              listen: false,
+                            ).getChildNameById(widget.childId),
                           },
                         ),
                       ),

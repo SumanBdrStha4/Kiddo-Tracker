@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
+import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -11,6 +12,7 @@ class RequestLeaveScreen extends StatefulWidget {
   final String? oprId;
   final String? routeId;
   final String? childId;
+  final String? childName;
 
   const RequestLeaveScreen({
     super.key,
@@ -18,6 +20,7 @@ class RequestLeaveScreen extends StatefulWidget {
     this.oprId,
     this.routeId,
     this.childId,
+    this.childName,
   });
 
   @override
@@ -30,14 +33,56 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
   DateTime? _selectedDay;
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
+  String? child_name;
   String? child_id;
   Map<DateTime, String> _holidayTypes = {};
   final TextEditingController _reasonController = TextEditingController();
+  final dbHelper = SqfliteHelper();
 
   @override
   void initState() {
     super.initState();
+    _fetchCustomerHoliday();
     _fetchHolidays();
+  }
+
+  Future<void> _fetchCustomerHoliday() async {
+    //use getAbsentDaysByStudentId from sqflitehelper.dart
+    if (widget.childId == null) {
+      Logger().w('Child ID is null, cannot fetch absent days.');
+      child_id = widget.child?['student_id'];
+    } else {
+      Logger().i('Fetching absent days for Child ID: ${widget.childId}');
+      child_id = widget.childId;
+    }
+    try {
+      if (child_id != null) {
+        final absentDays = await dbHelper.getAbsentDaysByStudentId(child_id!);
+        Logger().i('Fetched absent days from local DB: $absentDays');
+        Map<DateTime, String> leaveMap = {};
+        for (var absent in absentDays) {
+          DateTime start = DateTime.parse(absent['start_date']);
+          DateTime end = DateTime.parse(absent['end_date']);
+          for (
+            DateTime date = start;
+            date.isBefore(end.add(Duration(days: 1)));
+            date = date.add(Duration(days: 1))
+          ) {
+            leaveMap[DateTime(date.year, date.month, date.day)] = 'leave';
+          }
+        }
+        setState(() {
+          _holidayTypes = leaveMap;
+        });
+      }
+    } catch (e) {
+      Logger().e('Error fetching customer holidays: $e');
+    }
+  }
+
+  Future<void> dispose() async {
+    _reasonController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchHolidays() async {
@@ -48,13 +93,14 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
       //check if routeId and oprId are passed from previous screen
       final String? oprId = widget.oprId;
       final String? routeId = widget.routeId;
-      print('Using oprId: $oprId, routeId: $routeId');
+      final String? childId = widget.childId;
+      print('Using oprId: $oprId, routeId: $routeId, childId: $childId');
       Map<DateTime, String> allHolidayTypes = {};
       if (oprId != null &&
           routeId != null &&
           userId != null &&
           sessionId != null) {
-        child_id = widget.childId;
+        child_name = widget.childName;
         await callAPItoFetch(
           oprId,
           routeId,
@@ -63,7 +109,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
           allHolidayTypes,
         );
       } else if (userId != null && sessionId != null) {
-        child_id = widget.child?['name'];
+        child_name = widget.child?['name'];
         // Get the list of routes route_id and oprid from child route_info and print the output
         final routeInfoJson = widget.child?['route_info'] ?? '[]';
         final List<dynamic> routeInfo = json.decode(routeInfoJson);
@@ -86,7 +132,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
         }
       }
       setState(() {
-        _holidayTypes = allHolidayTypes;
+        _holidayTypes.addAll(allHolidayTypes);
       });
     } catch (e) {
       Logger().e('Error fetching holidays: $e');
@@ -130,7 +176,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Request Leave for ${child_id ?? "Child"}')),
+      appBar: AppBar(title: Text('Request Leave for ${child_name ?? "Child"}')),
       body: Column(
         children: [
           TableCalendar(
@@ -192,6 +238,9 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
                     case 'weekoff':
                       color = Colors.red.shade100;
                       break;
+                    case 'leave':
+                      color = Colors.orange.shade100;
+                      break;
                     case 'defultHoliday':
                       color = Colors.purple.shade100;
                       break;
@@ -219,13 +268,22 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
           //show what color represents which holiday type
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
-                _buildLegendItem('TSP Holiday', Colors.yellow.shade100),
-                _buildLegendItem('Route Holiday', Colors.brown.shade100),
-                _buildLegendItem('OPR Holiday', Colors.green.shade100),
-                _buildLegendItem('Weekly Off', Colors.red.shade100),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildLegendItem('TSP Holiday', Colors.yellow.shade100),
+                    _buildLegendItem('Route Holiday', Colors.brown.shade100),
+                    _buildLegendItem('OPR Holiday', Colors.green.shade100),
+                    _buildLegendItem('Weekly Off', Colors.red.shade100),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [_buildLegendItem('Leave', Colors.orange.shade100)],
+                ),
               ],
             ),
           ),

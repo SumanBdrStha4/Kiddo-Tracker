@@ -60,12 +60,14 @@ class AppRoutes {
         final String? oprId = arguments['oprId'];
         final String? routeId = arguments['routeId'];
         final String? childId = arguments['childId'];
+        final String? childName = arguments['childName'];
         return MaterialPageRoute(
           builder: (_) => RequestLeaveScreen(
             child: child,
             oprId: oprId,
             routeId: routeId,
             childId: childId,
+            childName: childName,
           ),
         );
       default:
