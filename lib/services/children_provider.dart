@@ -99,13 +99,13 @@ class ChildrenProvider with ChangeNotifier {
     final service = mqttService ?? _mqttService;
     if (service == null) return;
 
-    Set<String> currentTopics = {};
-    currentTopics.addAll(_children.map((child) => child.studentId));
-    for (var child in _children) {
-      currentTopics.addAll(
-        child.routeInfo.map((route) => '${route.routeId}/${route.oprId}'),
-      );
-    }
+    Set<String> currentTopics = {
+      ..._children.map((child) => child.studentId),
+      ..._children.expand(
+        (child) =>
+            child.routeInfo.map((route) => '${route.routeId}/${route.oprId}'),
+      ),
+    };
     service.subscribeToTopics(currentTopics.toList());
     _subscribedTopics.addAll(currentTopics.toList());
 

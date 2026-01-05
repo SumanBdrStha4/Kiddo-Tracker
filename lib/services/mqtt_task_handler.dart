@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:kiddo_tracker/mqtt/MQTTService.dart';
+import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/notification_service.dart';
+import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 
@@ -9,13 +11,12 @@ class MQTTTaskHandler extends TaskHandler {
   MQTTService? _mqttService;
   StreamSubscription<List<MqttReceivedMessage<MqttMessage>>>?
   _messageSubscription;
-  Timer? _reconnectTimer;
   bool _isRunning = false;
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     // Initialize notification service for foreground task
-    await NotificationService.initialize();
+    // await NotificationService.initialize();
 
     // Get subscribed topics from shared preferences
     final prefs = await SharedPreferences.getInstance();
@@ -29,11 +30,22 @@ class MQTTTaskHandler extends TaskHandler {
   @override
   Future<void> onRepeatEvent(DateTime timestamp) async {
     // Periodic event handling
-    if (_mqttService != null && _mqttService!.connectionStatus != 'Connected') {
-      try {
-        await _mqttService!.connect();
-      } catch (e) {
-        print('Failed to reconnect MQTT in foreground: $e');
+    // if (_mqttService != null && _mqttService!.connectionStatus != 'Connected') {
+    //   try {
+    //     await _mqttService!.connect();
+    //   } catch (e) {
+    //     print('Failed to reconnect MQTT in foreground: $e');
+    //   }
+    // }
+    //for not
+    Logger().d('MQTT Foreground Task repeating at $timestamp');
+    if (_mqttService == null || !_isRunning) {
+      // Get subscribed topics from shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      final topics = prefs.getStringList('subscribed_topics') ?? [];
+
+      if (topics.isNotEmpty) {
+        _initializeMQTT(topics);
       }
     }
   }
@@ -41,8 +53,7 @@ class MQTTTaskHandler extends TaskHandler {
   @override
   Future<void> onDestroy(DateTime timestamp, bool isDestroyed) async {
     _isRunning = false;
-    _reconnectTimer?.cancel();
-    _messageSubscription?.cancel();
+    await _messageSubscription?.cancel();
     _mqttService?.disconnect();
   }
 
@@ -52,33 +63,38 @@ class MQTTTaskHandler extends TaskHandler {
   }
 
   void _initializeMQTT(List<String> topics) async {
-    if (_isRunning) return;
+    // if (_isRunning) return;
 
-    _isRunning = true;
-
-    _mqttService = MQTTService(
-      onMessageReceived: (message) {
-        // Handle incoming MQTT messages
-        _handleMessage(message);
-      },
-      onConnectionStatusChanged: (status) {
-        FlutterForegroundTask.updateService(
-          notificationTitle: 'Kiddo Tracker',
-          notificationText: 'Status: $status',
-        );
-      },
-      onLogMessage: (message) {
-        // Log messages for debugging
-        print('MQTT Foreground: $message');
-      },
-    );
+    // _isRunning = true;
+    try {
+      _mqttService ??= MQTTService(
+        onMessageReceived: (message) {
+          // Handle incoming MQTT messages
+          _handleMessage(message);
+        },
+        onConnectionStatusChanged: (status) {
+          _isRunning = status == 'Connected';
+          FlutterForegroundTask.updateService(
+            notificationTitle: 'Kiddo Tracker',
+            notificationText: 'Status: $status',
+          );
+        },
+        onLogMessage: (message) {
+          // Log messages for debugging
+          print('MQTT Foreground: $message');
+        },
+      );
+    } catch (e) {
+      print('Error initializing MQTTService: $e');
+      return;
+    }
 
     try {
       await _mqttService!.connect();
       _mqttService!.subscribeToTopics(topics);
 
       // Set up message subscription
-      _messageSubscription = _mqttService!.client.updates?.listen((updates) {
+      _messageSubscription ??= _mqttService!.client.updates?.listen((updates) {
         for (var update in updates) {
           final message = update.payload as MqttPublishMessage;
           final payload = MqttPublishPayload.bytesToStringAsString(
@@ -100,7 +116,7 @@ class MQTTTaskHandler extends TaskHandler {
       NotificationService.showNotification(
         id: DateTime.now().millisecondsSinceEpoch ~/ 1000, // Unique ID
         title: 'Child Location Update',
-        body: 'Location data received',
+        body: message,
       );
     } catch (e) {
       print('Error handling MQTT message: $e');
@@ -119,32 +135,51 @@ class MQTTTaskHandler extends TaskHandler {
 
 // Callback function for starting the foreground task
 void startCallback(DateTime timestamp) {
-  final handler = MQTTTaskHandler();
-  handler.onStart(timestamp, TaskStarter.values.first);
+  // final handler = MQTTTaskHandler();
+  // handler.onStart(timestamp, TaskStarter.values.first);
+  FlutterForegroundTask.setTaskHandler(MQTTTaskHandler());
+}
+
+Future<void> updateSubscribedTopics(List<String> topics) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setStringList('subscribed_topics', topics);
 }
 
 // Helper function to start foreground task
 Future<void> startMQTTForegroundTask(List<String> topics) async {
-  if (await FlutterForegroundTask.isRunningService) {
-    // Update existing task
-    final handler = MQTTTaskHandler();
-    handler.updateSubscribedTopics(topics);
-    return;
-  }
+  // if (await FlutterForegroundTask.isRunningService) {
+  //   // Update existing task
+  //   final handler = MQTTTaskHandler();
+  //   handler.updateSubscribedTopics(topics);
+  //   Logger().i('Updated MQTT foreground task with topics: $topics');
+  //   return;
+  // }
 
   // Start new foreground task
   await FlutterForegroundTask.startService(
     notificationTitle: 'Kiddo Tracker',
-    notificationText: 'Monitoring child locations...',
+    notificationText: 'Monitoring child Status...',
     notificationIcon: null,
     notificationButtons: [
       const NotificationButton(id: 'stop_service', text: 'Stop'),
     ],
+    notificationInitialRoute: AppRoutes.main,
     callback: startCallback,
   );
+  Logger().i('Started MQTT foreground task with topics: $topics');
 }
 
-// Helper function to stop foreground task
-Future<void> stopMQTTForegroundTask() async {
-  await FlutterForegroundTask.stopService();
+void onNotificationButtonClick(String id) {
+  if (id == 'stop_service') {
+    FlutterForegroundTask.stopService();
+    Logger().i('MQTT foreground task stopped via notification button');
+  }
+}
+
+Future<void> requestBatteryOptimization() async {
+  try {
+    await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+  } catch (e) {
+    print("Error while requesting ignore battery optimization: $e");
+  }
 }

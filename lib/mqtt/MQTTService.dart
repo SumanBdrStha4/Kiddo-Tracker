@@ -106,7 +106,7 @@ class MQTTService {
   }
 
   void pong() {
-    // onLogMessage('Ping response client callback invoked');
+    onLogMessage('Ping response client callback invoked');
   }
 
   void disconnect() {

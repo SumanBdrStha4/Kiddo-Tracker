@@ -8,6 +8,7 @@ import 'package:kiddo_tracker/services/notification_service.dart';
 import 'package:kiddo_tracker/services/workmanager_callback.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
+import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
@@ -21,6 +22,29 @@ Future<List<String>> _getSubscribedTopics() async {
   return prefs.getStringList('subscribed_topics') ?? [];
 }
 
+void _initService() {
+  FlutterForegroundTask.init(
+    androidNotificationOptions: AndroidNotificationOptions(
+      channelId: 'foreground_service',
+      channelName: 'Foreground Service Notification',
+      channelDescription:
+          'This notification appears when the foreground service is running.',
+      onlyAlertOnce: true,
+    ),
+    iosNotificationOptions: const IOSNotificationOptions(
+      showNotification: false,
+      playSound: false,
+    ),
+    foregroundTaskOptions: ForegroundTaskOptions(
+      eventAction: ForegroundTaskEventAction.repeat(5000),
+      autoRunOnBoot: true,
+      autoRunOnMyPackageReplaced: true,
+      allowWakeLock: true,
+      allowWifiLock: true,
+    ),
+  );
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   rendering.debugRepaintRainbowEnabled = true;
@@ -30,7 +54,7 @@ void main() async {
   await NotificationService.initialize();
   // Initialize port for communication between TaskHandler and UI.
   FlutterForegroundTask.initCommunicationPort();
-
+  _initService();
   //workManager
   Workmanager().initialize(workmanagerDispatcher, isInDebugMode: false);
   // Runs once every 24 hours to reset the alarm
@@ -68,6 +92,7 @@ void main() async {
   if (isLoggedIn == true) {
     final topics = await _getSubscribedTopics();
     if (topics.isNotEmpty) {
+      Logger().i('Starting MQTT foreground task with topics: $topics');
       await startMQTTForegroundTask(topics);
     }
   }
