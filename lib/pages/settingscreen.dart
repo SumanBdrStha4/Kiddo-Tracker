@@ -268,7 +268,8 @@ class _SettingScreenState extends State<SettingScreen> {
                       IconButton(
                         icon: Icon(Icons.delete, color: Colors.redAccent),
                         tooltip: 'Delete child',
-                        onPressed: () => _confirmDeleteChild(idx),
+                        onPressed: () =>
+                            _confirmDeleteChild(idx, child['tag_id']),
                       ),
                       SizedBox(height: 4),
                       IconButton(
@@ -385,7 +386,21 @@ class _SettingScreenState extends State<SettingScreen> {
     );
   }
 
-  void _confirmDeleteChild(int idx) {
+  void _confirmDeleteChild(int idx, String tagId) {
+    // Before deleting, check tag assign to child or not
+    // If assigned, show message cannot delete child
+    // Else show confirm dialog
+    if (tagId.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cannot delete child. Tags are assigned to this child.',
+            style: TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -504,9 +519,7 @@ class _SettingScreenState extends State<SettingScreen> {
       AppRoutes.generateRoute(
         RouteSettings(
           name: AppRoutes.requestLeave,
-          arguments: {
-            'child': child,
-          },
+          arguments: {'child': child},
         ),
       ),
     );

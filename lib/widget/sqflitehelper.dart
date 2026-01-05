@@ -807,4 +807,15 @@ class SqfliteHelper {
       Logger().w('No rows were updated.');
     }
   }
+
+  Future<void> updateTagId(String string, String string2) async {
+    //update the tag_id in child table base on student_id
+    final dbClient = await db;
+    await dbClient.update(
+      'child',
+      {'tag_id': string},
+      where: 'student_id = ?',
+      whereArgs: [string2],
+    );
+  }
 }

@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:workmanager/workmanager.dart';
 
 // Helper function to get subscribed topics from shared preferences
@@ -97,7 +98,40 @@ class _MainAppState extends State<MainApp> {
         final isLoggedIn = await SharedPreferenceHelper.getUserLoggedIn();
         print('isLoggedIn: $isLoggedIn');
 
+        //[{result: ok}, {data: [{student_id: OD57164911, name: Son 010, nickname: 010, school: IIT, class: 1, rollno: 5, age: 8, gender: Male, tag_id: 5B:DF:DE:71:5A:BB, route_info:
         if (data[0]['result'] == 'ok') {
+          // update the child tag_id in local db
+          final studentData = data[1]['data'] as List<dynamic>;
+          for (var student in studentData) {
+            final studentId = student['student_id'];
+            final tagId = student['tag_id'];
+            //update the sqflite database child's tag_id
+            if (studentId != null && tagId != null) {
+              // Check sqflite Db exists or not
+              final databasesPath = await getDatabasesPath();
+              final dbPath = '$databasesPath/kiddo_tracker.db';
+              final dbExists = await databaseExists(dbPath);
+              if (dbExists) {
+                final db = await openDatabase(dbPath);
+                // first check if child exists
+                final List<Map<String, dynamic>> existingChild = await db.query(
+                  'child',
+                  where: 'student_id = ?',
+                  whereArgs: [studentId],
+                );
+                if (existingChild.isNotEmpty) {
+                  await db.update(
+                    'child',
+                    {'tag_id': tagId},
+                    where: 'student_id = ?',
+                    whereArgs: [studentId],
+                  );
+                }
+                await db.close();
+              }
+            }
+          }
+
           // Session is valid, now check userLoggedIn
           if (isLoggedIn == true) {
             print('Session valid and user logged in');
