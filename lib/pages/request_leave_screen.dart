@@ -80,6 +80,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
     }
   }
 
+  @override
   Future<void> dispose() async {
     _reasonController.dispose();
     super.dispose();

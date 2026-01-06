@@ -164,7 +164,9 @@ class ChildrenService {
       String userId = userInfo[0]['userid'].toString();
       String sessionId = userInfo[0]['sessionid'].toString();
       for (var child in children) {
+        Logger().i('Fetching absent days for child: ${child.tsp_id}');
         for (var tspId in child.tsp_id) {
+          Logger().i('Fetching absent days for tspId: $tspId');
           final response = await ApiService.fetchStudentAbsentDays(
             userId,
             sessionId,
@@ -174,20 +176,27 @@ class ChildrenService {
           final data = response.data;
           Logger().i(data);
           // Store absent days data in absentDays list
-          absentDays.addAll(data[1]['data'] as List<dynamic>? ?? []);
-          if (data is List && data.isNotEmpty && data[0]['result'] == 'ok') {
-            final List absentDaysData = List.from(
-              data[1]['data'] as List<dynamic>? ?? [],
-            );
-            for (var absentDay in absentDaysData) {
-              await _sqfliteHelper.insertAbsentDay(
-                absentDay['student_id'].toString(),
-                absentDay['start_date'].toString(),
-                absentDay['end_date'].toString(),
-                tspId,
+          if (data[0]['result'] == 'ok') {
+            if (data[1]['data'] is String || data[1]['data'].isEmpty) {
+              Logger().i('No absent days found for tspId: $tspId');
+              continue;
+            } else {
+              Logger().i('Absent days data: ${data[1]['data']}');
+              absentDays.addAll(data[1]['data'] as List<dynamic>? ?? []);
+              final List absentDaysData = List.from(
+                data[1]['data'] as List<dynamic>? ?? [],
               );
+              for (var absentDay in absentDaysData) {
+                await _sqfliteHelper.insertAbsentDay(
+                  absentDay['student_id'].toString(),
+                  absentDay['start_date'].toString(),
+                  absentDay['end_date'].toString(),
+                  tspId,
+                );
+              }
             }
           }
+
         }
       }
 
