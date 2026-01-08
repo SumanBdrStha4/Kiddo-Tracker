@@ -100,6 +100,7 @@ class _HomeScreenState extends State<HomeScreen>
       _initAsync();
       _hasInitialized = true;
     }
+    SharedPreferenceHelper.setAppActive(true);
     _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -170,6 +171,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    SharedPreferenceHelper.setAppActive(false);
     _controller.dispose();
     super.dispose();
   }

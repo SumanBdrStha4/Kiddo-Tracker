@@ -7,6 +7,7 @@ import 'package:kiddo_tracker/mqtt/MQTTService.dart';
 import 'package:kiddo_tracker/services/mqtt_message_handler.dart';
 import 'package:kiddo_tracker/services/notification_service.dart';
 import 'package:kiddo_tracker/services/permission_service.dart';
+import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -49,7 +50,10 @@ void onStart(ServiceInstance service) async {
   // Initialize MQTT Service for background
   final mqttService = MQTTService(
     onMessageReceived: (message) async {
-      await MQTTMessageHandler.handleMQTTMessage(message, sqfliteHelper);
+      final isAppActive = await SharedPreferenceHelper.getAppActive();
+      if (!isAppActive) {
+        await MQTTMessageHandler.handleMQTTMessage(message, sqfliteHelper);
+      }
     },
     onConnectionStatusChanged: (status) {
       // Update service notification with connection status

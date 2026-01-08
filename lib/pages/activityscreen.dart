@@ -84,9 +84,14 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   // Helper method to format time
   String _formatTime(String createdAt) {
+    //convert the timestamp to local time
     try {
-      DateTime dt = DateTime.parse(createdAt);
-      return DateFormat('MMM dd, yyyy at hh:mm a').format(dt);
+      int millis = int.parse(createdAt);
+      DateTime localDateTime = DateTime.fromMillisecondsSinceEpoch(
+        millis,
+        isUtc: true,
+      ).toLocal();
+      return DateFormat("MMM dd, yyyy 'at' hh:mm a").format(localDateTime);
     } catch (e) {
       return createdAt;
     }
@@ -294,7 +299,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            'Created: ${_formatTime(activity['created_at'] ?? '')}',
+                                            'Time: ${_formatTime(activity['message_time'] ?? '')}',
                                           ),
                                         ],
                                       ),

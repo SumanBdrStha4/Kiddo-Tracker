@@ -70,6 +70,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
         route.oprId.toString(),
         widget.childId,
       );
+      Logger().d('Fetched activity times: $times');
       setState(() {
         onboardTime = times['onboardTime'] ?? '_';
         offboardTime = times['offboardTime'] ?? '_';
@@ -210,41 +211,6 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                                 ),
                               ),
                             ],
-                          ),
-                          FutureBuilder<bool>(
-                            future: isWithinRange(
-                              widget.routes.first.stopLocation,
-                              onlocation,
-                              50,
-                            ),
-                            builder: (context, snapshot) {
-                              // if (snapshot.connectionState ==
-                              //     ConnectionState.waiting) {
-                              //   return const CircularProgressIndicator(); // Loading indicator while waiting for the result
-                              // } else
-                              if (snapshot.hasError) {
-                                return Text('Error: ${snapshot.error}');
-                              } else if (snapshot.hasData &&
-                                  snapshot.data == true) {
-                                return Text(
-                                  'Onboard at $onboardTime',
-                                  style: const TextStyle(
-                                    color: Colors.blue,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                );
-                              } else {
-                                return Text(
-                                  'Onboard',
-                                  style: const TextStyle(
-                                    color: Colors.blue,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                );
-                              }
-                            },
                           ),
                         ],
                       ),

@@ -315,7 +315,7 @@ class _OTPScreenState extends State<OTPScreen> {
             context,
             AppRoutes.signup,
             (route) => false,
-            arguments: "8456029772", //userId
+            arguments: /*"8456029772", */ userId,
           );
         }
         Logger().e('Error fetching children: ${result['error']}');

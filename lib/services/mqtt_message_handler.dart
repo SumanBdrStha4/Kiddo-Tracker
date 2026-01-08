@@ -23,6 +23,7 @@ class MQTTMessageHandler {
       final int? msgtype = data['msgtype'] as int?;
 
       if (msgtype == 2) {
+        Logger().i('Handling onboard message');
         await handleOnboardMessage(
           data,
           jsonMessage,
@@ -31,6 +32,7 @@ class MQTTMessageHandler {
           context: context,
         );
       } else if (msgtype == 3) {
+        Logger().i('Handling offboard message');
         await handleOffboardMessage(
           data,
           jsonMessage,
@@ -63,12 +65,11 @@ class MQTTMessageHandler {
     BuildContext? context,
   }) async {
     final String? studentId = data['studentid'] as String?;
-    final int status = data['status'] as int? ?? 1; // Default to onboard
-
+    Logger().i('Handling onboard for studentId: $studentId');
     if (studentId != null) {
       await updateChildStatus(
         studentId,
-        status,
+        1,
         jsonMessage,
         sqfliteHelper,
         provider: provider,
@@ -197,6 +198,9 @@ class MQTTMessageHandler {
       final offBoardLocation = status == 2
           ? jsonMessage['data']['location']
           : '';
+      Logger().i(
+        'Inserting activity for studentId: $studentId, status: ${status == 1 ? 'onboarded' : 'offboarded'}',
+      );
       await sqfliteHelper.insertActivity({
         'student_id': studentId,
         'student_name': childName,
@@ -205,6 +209,7 @@ class MQTTMessageHandler {
         'off_location': offBoardLocation,
         'route_id': jsonMessage['devid'].split('_')[0],
         'oprid': jsonMessage['devid'].split('_')[1],
+        'message_time': jsonMessage['timestamp'],
       });
 
       // Update provider if in foreground

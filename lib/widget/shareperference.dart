@@ -75,4 +75,15 @@ class SharedPreferenceHelper {
     await prefs.remove("earliestRouteHour");
     await prefs.remove("earliestRouteMinute");
   }
+
+  // app active status
+  static Future<void> setAppActive(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool("appActive", value);
+  }
+
+  static Future<bool> getAppActive() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool("appActive") ?? false;
+  }
 }

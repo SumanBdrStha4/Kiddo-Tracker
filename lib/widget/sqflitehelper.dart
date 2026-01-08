@@ -97,6 +97,7 @@ class SqfliteHelper {
       off_location TEXT,
       route_id TEXT,
       oprid TEXT,
+      message_time TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     ''');
@@ -198,12 +199,12 @@ class SqfliteHelper {
     if (latest != null) {
       // Check if the latest entry's status is 'onboarded'
       if (latest['status'] == 'onboarded') {
-        onboardTime = latest['created_at'].toString();
+        onboardTime = latest['message_time'].toString();
         onLocation = latest['on_location'];
       }
       // Check if the latest entry's status is 'offboarded'
       else if (latest['status'] == 'offboarded') {
-        offboardTime = latest['created_at'].toString();
+        offboardTime = latest['message_time'].toString();
         offLocation = latest['off_location'];
       }
     }
