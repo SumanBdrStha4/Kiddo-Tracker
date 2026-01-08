@@ -113,7 +113,8 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                           final color = _getBusIconColor(activeRoutes);
                           return InkWell(
                             onTap:
-                                color == Colors.green && widget.onBusTap != null
+                                // color == Colors.green &&
+                                widget.onBusTap != null
                                 ? () => widget.onBusTap!(
                                     widget.routeId,
                                     widget.routes,

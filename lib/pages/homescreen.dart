@@ -12,8 +12,10 @@ import 'package:kiddo_tracker/model/route.dart';
 import 'package:kiddo_tracker/mqtt/MQTTService.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
+import 'package:kiddo_tracker/services/mqtt_message_handler.dart';
 import 'package:kiddo_tracker/services/notification_service.dart';
 import 'package:kiddo_tracker/services/permission_service.dart';
+import 'package:kiddo_tracker/widget/bus_current_location.dart';
 import 'package:kiddo_tracker/widget/child_card_widget.dart';
 import 'package:kiddo_tracker/widget/location_and_route_dialog.dart';
 import 'package:kiddo_tracker/widget/mqtt_widget.dart';
@@ -110,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen>
     await PermissionService.requestNotificationPermission();
     await PermissionService.requestLocationPermission();
     await _fetchChildrenFromDb();
+    await _updateActiveRoutesOnLoad();
     await _mqttCompleter.future;
     await _subscribeToTopics();
     await _fetchRouteStoapge();
@@ -315,141 +318,171 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void _onMQTTMessageReceived(String message) {
-    try {
-      final Map<String, dynamic> jsonMessage = jsonDecode(message);
-      final Map<String, dynamic> data =
-          jsonMessage['data'] as Map<String, dynamic>;
-      final int? msgtype = data['msgtype'] as int?;
+  Future<void> _updateActiveRoutesOnLoad() async {
+    final userId = await SharedPreferenceHelper.getUserNumber();
+    final sessionId = await SharedPreferenceHelper.getUserSessionId();
+    if (userId == null || sessionId == null) return;
 
-      if (msgtype == 2) {
-        _handleOnboardMessage(data, jsonMessage);
-      } else if (msgtype == 3) {
-        _handleOffboardMessage(data, jsonMessage);
-      } else if (msgtype == 1 || msgtype == 4) {
-        _handleBusStatusMessage(msgtype, jsonMessage);
-      } else {
-        Logger().w('Unknown msgtype: $msgtype');
-      }
-    } catch (e) {
-      Logger().e('Error parsing MQTT message: $e');
-    }
-    //on every notificaion it will be called
-    // widget.onNewMessage?.call();
-  }
-
-  void _handleOnboardMessage(
-    Map<String, dynamic> data,
-    Map<String, dynamic> jsonMessage,
-  ) {
-    final String? studentId = data['studentid'] as String?;
-    final int status = data['status'] as int? ?? 1; // Default to onboard
-
-    if (studentId != null) {
-      _updateChildStatus(studentId, status, jsonMessage);
-    } else {
-      Logger().w('Missing studentid in onboard message');
-    }
-  }
-
-  void _handleOffboardMessage(
-    Map<String, dynamic> data,
-    Map<String, dynamic> jsonMessage,
-  ) {
-    final List<dynamic>? offlist = data['offlist'] as List<dynamic>?;
-
-    if (offlist != null) {
-      for (var id in offlist) {
-        if (id is String) {
-          _updateChildStatus(id, 2, jsonMessage); // Offboard status
-        }
-      }
-    } else {
-      Logger().w('Missing offlist in offboard message');
-    }
-  }
-
-  void _handleBusStatusMessage(int? msgtype, Map<String, dynamic> jsonMessage) {
-    String devid = jsonMessage['devid'] ?? '';
-    if (devid.isNotEmpty) {
-      final provider = Provider.of<ChildrenProvider>(context, listen: false);
-      final children = provider.children;
-      for (var child in children) {
-        for (var route in child.routeInfo) {
-          String key = '${route.routeId}_${route.oprId}';
-          if (key == devid) {
-            NotificationService.showNotification(
-              id: 0,
-              title: 'KT Status Update',
-              body:
-                  'Bus ${route.routeName} has been ${msgtype == 1 ? 'activated' : 'deactivated'}.',
+    final children = Provider.of<ChildrenProvider>(
+      context,
+      listen: false,
+    ).children;
+    final Set<String> uniqueRoutes = <String>{};
+    for (var child in children) {
+      for (var route in child.routeInfo) {
+        final String key = '${route.routeId}_${route.oprId}';
+        if (!uniqueRoutes.contains(key)) {
+          uniqueRoutes.add(key);
+          try {
+            final response = await ApiService.fetchOperationStatus(
+              userId,
+              route.oprId.toString(),
+              sessionId,
             );
-            if (msgtype == 1) {
-              provider.updateActiveRoutes(key, true);
-            } else if (msgtype == 4) {
-              provider.updateActiveRoutes(key, false);
+            if (response.statusCode == 200 &&
+                response.data.isNotEmpty &&
+                response.data[0]['result'] == 'ok' &&
+                response.data.length > 1) {
+              final operationData = response.data[1]['data'];
+              if (operationData is List && operationData.isNotEmpty) {
+                final operationStatus = operationData[0]['operation_status'];
+                final provider = Provider.of<ChildrenProvider>(
+                  context,
+                  listen: false,
+                );
+                if (operationStatus == 1) {
+                  provider.updateActiveRoutes(key, true);
+                } else {
+                  provider.updateActiveRoutes(key, false);
+                }
+              }
             }
+          } catch (e) {
+            Logger().e('Error fetching operation status for $key: $e');
           }
         }
       }
-    } else {
-      Logger().w('Missing devid in bus active/inactive message');
     }
   }
 
-  void _updateChildStatus(
-    String studentId,
-    int status,
-    Map<String, dynamic> jsonMessage,
-  ) {
+  Future<void> _onMQTTMessageReceived(String message) async {
     final provider = Provider.of<ChildrenProvider>(context, listen: false);
-    final children = provider.children;
-    final childIndex = children.indexWhere(
-      (child) => child.studentId == studentId,
+    await MQTTMessageHandler.handleMQTTMessage(
+      message,
+      _sqfliteHelper,
+      provider: provider,
+      context: context,
     );
-    String onBoardLocation = "";
-    String offBoardLocation = "";
-
-    if (childIndex != -1) {
-      // Show a notification
-      NotificationService.showNotification(
-        id: 0,
-        title: 'KT Status Update',
-        body:
-            'Child ${children[childIndex].name} has been ${status == 1 ? 'onboarded' : 'offboarded'}.',
-      );
-      //set location base on jsonMessage['data']['msgtype']
-      if (status == 1) {
-        onBoardLocation = jsonMessage['data']['location'];
-      } else if (status == 2) {
-        offBoardLocation = jsonMessage['data']['location'];
-      }
-      //save to database
-      _sqfliteHelper.insertActivity({
-        'student_id': studentId,
-        'student_name': children[childIndex].name,
-        'status': status == 1 ? 'onboarded' : 'offboarded',
-        'on_location': onBoardLocation,
-        'off_location': offBoardLocation,
-        'route_id': jsonMessage['devid'].split('_')[0],
-        'oprid': jsonMessage['devid'].split('_')[1],
-      });
-
-      // Update the status of the child
-      Logger().i('Updating status for child $studentId to $status');
-      provider.updateChildOnboardStatus(studentId, status);
-      //update the ActivityScreen after data insert in database
-      provider.updateActivity();
-      if (status == 1 || status == 2) {
-        setState(() {
-          _boardRefreshKey++;
-        });
-      }
-      Logger().i('Updated status for child $studentId to $status');
-    } else {
-      Logger().w('Child with studentId $studentId not found');
-    }
   }
+
+  // Future<void> _handleOnboardMessage(
+  //   Map<String, dynamic> data,
+  //   Map<String, dynamic> jsonMessage,
+  // ) async {
+  //   final String? studentId = data['studentid'] as String?;
+  //   final int status = data['status'] as int? ?? 1; // Default to onboard
+
+  //   if (studentId != null) {
+  //     await _updateChildStatus(studentId, status, jsonMessage);
+  //   } else {
+  //     Logger().w('Missing studentid in onboard message');
+  //   }
+  // }
+
+  // Future<void> _handleOffboardMessage(
+  //   Map<String, dynamic> data,
+  //   Map<String, dynamic> jsonMessage,
+  // ) async {
+  //   final List<dynamic>? offlist = data['offlist'] as List<dynamic>?;
+
+  //   if (offlist != null) {
+  //     for (var id in offlist) {
+  //       if (id is String) {
+  //         await _updateChildStatus(id, 2, jsonMessage); // Offboard status
+  //       }
+  //     }
+  //   } else {
+  //     Logger().w('Missing offlist in offboard message');
+  //   }
+  // }
+
+  // void _handleBusStatusMessage(int? msgtype, Map<String, dynamic> jsonMessage) {
+  //   String devid = jsonMessage['devid'] ?? '';
+  //   if (devid.isNotEmpty) {
+  //     final provider = Provider.of<ChildrenProvider>(context, listen: false);
+  //     final children = provider.children;
+  //     for (var child in children) {
+  //       for (var route in child.routeInfo) {
+  //         String key = '${route.routeId}_${route.oprId}';
+  //         if (key == devid) {
+  //           NotificationService.notifyBusStatus(
+  //             routeName: route.routeName,
+  //             isActivated: msgtype == 1,
+  //           );
+  //           if (msgtype == 1) {
+  //             provider.updateActiveRoutes(key, true);
+  //           } else if (msgtype == 4) {
+  //             provider.updateActiveRoutes(key, false);
+  //           }
+  //         }
+  //       }
+  //     }
+  //   } else {
+  //     Logger().w('Missing devid in bus active/inactive message');
+  //   }
+  // }
+
+  // Future<void> _updateChildStatus(
+  //   String studentId,
+  //   int status,
+  //   Map<String, dynamic> jsonMessage,
+  // ) async {
+  //   final provider = Provider.of<ChildrenProvider>(context, listen: false);
+  //   final children = provider.children;
+  //   final childIndex = children.indexWhere(
+  //     (child) => child.studentId == studentId,
+  //   );
+  //   String onBoardLocation = "";
+  //   String offBoardLocation = "";
+
+  //   if (childIndex != -1) {
+  //     // Show a notification
+  //     NotificationService.notifyChildStatus(
+  //       childName: children[childIndex].name,
+  //       isOnboard: status == 1,
+  //     );
+  //     //set location base on jsonMessage['data']['msgtype']
+  //     if (status == 1) {
+  //       onBoardLocation = jsonMessage['data']['location'];
+  //     } else if (status == 2) {
+  //       offBoardLocation = jsonMessage['data']['location'];
+  //     }
+  //     //save to database
+  //     _sqfliteHelper.insertActivity({
+  //       'student_id': studentId,
+  //       'student_name': children[childIndex].name,
+  //       'status': status == 1 ? 'onboarded' : 'offboarded',
+  //       'on_location': onBoardLocation,
+  //       'off_location': offBoardLocation,
+  //       'route_id': jsonMessage['devid'].split('_')[0],
+  //       'oprid': jsonMessage['devid'].split('_')[1],
+  //     });
+
+  //     // Update the status of the child
+  //     Logger().i('Updating status for child $studentId to $status');
+  //     provider.updateChildOnboardStatus(studentId, status);
+  //     //update the ActivityScreen after data insert in database
+  //     provider.updateActivity();
+  //     if (status == 1 || status == 2) {
+  //       setState(() {
+  //         _boardRefreshKey++;
+  //       });
+  //     }
+  //     Logger().i('Updated status for child $studentId to $status');
+  //   } else {
+  //     Logger().w('Child with studentId $studentId not found');
+  //   }
+  // }
 
   void _onMQTTStatusChanged(String status) {
     if (mounted) {
@@ -466,7 +499,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // Action methods
-  void _onSubscribe(Child child) async {
+  Future<void> _onSubscribe(Child child) async {
     // Implement subscribe action
     Logger().i('Subscribe clicked for ${child.name}, ${child.studentId}');
     // Add your subscription logic here
@@ -501,7 +534,7 @@ class _HomeScreenState extends State<HomeScreen>
     // Add your offboard logic here
   }
 
-  void _onAddRoute(Child child) async {
+  Future<void> _onAddRoute(Child child) async {
     Logger().i('Add route clicked for ${child.name}');
     // Navigate to AddChildRoutePage and wait for result
     final result = await Navigator.pushNamed(
@@ -519,16 +552,120 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  _onBusTap(String routeId, List<RouteInfo> routes) {
+  Future<void> _onBusTap(String routeId, List<RouteInfo> routes) async {
     // Implement bus tap action
     Logger().i('Bus tapped for route $routeId');
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Bus tapped for route $routeId')));
-    // Add your bus tap logic here
+    if (routes.isEmpty) {
+      Logger().e('No routes available for routeId: $routeId');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No routes available for $routeId')),
+      );
+      return;
+    }
+    // check route status active or inactive
+    // base on '${route.routeId}_${route.oprId}';
+    final provider = Provider.of<ChildrenProvider>(context, listen: false);
+    final activeRoutes = provider.activeRoutesNotifier.value;
+    String key = '${routeId}_${routes.first.oprId}';
+    final isActive = activeRoutes[key] ?? false;
+    Logger().i('Route $routeId is ${isActive ? 'active' : 'inactive'}');
+    // only for inactive show a snackbar in red color
+    if (!isActive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bus for route $routeId is inactive'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    } else {
+      // call an ApiService.fetchOperationStatus to get the bus current location.
+      final userId = await SharedPreferenceHelper.getUserNumber();
+      final sessionId = await SharedPreferenceHelper.getUserSessionId();
+      final oprId = routes.first.oprId;
+      final vehicleId = routes.first.vehicleId;
+
+      try {
+        final responseLocation = await ApiService.fetchOperationStatus(
+          userId!,
+          oprId.toString(),
+          sessionId!,
+        );
+        Logger().w(responseLocation);
+
+        final responseVehicle = await ApiService.fetchVehicleInfo(
+          userId,
+          sessionId,
+          vehicleId,
+        );
+        Logger().w(responseVehicle);
+
+        String currentLocation = '';
+        String busName = '';
+
+        if (responseLocation.statusCode == 200 &&
+            responseLocation.data.isNotEmpty &&
+            responseLocation.data[0]['result'] == 'ok' &&
+            responseLocation.data.length > 1) {
+          final operationData = responseLocation.data[1]['data'];
+          if (operationData is List && operationData.isNotEmpty) {
+            currentLocation = operationData[0]['current_location'] ?? '';
+          }
+        }
+        Logger().i('Current Location: $currentLocation');
+
+        if (responseVehicle.statusCode == 200 &&
+            responseVehicle.data.isNotEmpty &&
+            responseVehicle.data[0]['result'] == 'ok' &&
+            responseVehicle.data.length > 1) {
+          final vehicleData = responseVehicle.data[1]['data'];
+          if (vehicleData is List && vehicleData.isNotEmpty) {
+            busName = vehicleData[0]['vehicle_name'] ?? '';
+          }
+        }
+        Logger().i('Bus Name: $busName');
+
+        if (currentLocation.isNotEmpty && busName.isNotEmpty) {
+          final latLng = currentLocation.split(',');
+          final latitude = double.tryParse(latLng[0]) ?? 0.0;
+          final longitude = double.tryParse(latLng[1]) ?? 0.0;
+
+          Logger().i(
+            'Opening map dialog with coordinates: lat=$latitude, lng=$longitude, bus=$busName',
+          );
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BusCurrentLocationDialog(
+                routeId: routeId,
+                routes: routes,
+                latitude: latitude,
+                longitude: longitude,
+                busName: busName,
+              ),
+            ),
+          );
+        } else {
+          Logger().w(
+            'Cannot open map dialog: currentLocation="$currentLocation", busName="$busName"',
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unable to fetch bus location')),
+          );
+        }
+      } catch (e) {
+        Logger().e('Error fetching bus location: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error fetching bus location')),
+        );
+      }
+
+      // open a dialog to the bus location in google map
+    }
   }
 
-  _onLocationTap(String routeId, List<RouteInfo> routes) async {
+  Future<void> _onLocationTap(String routeId, List<RouteInfo> routes) async {
     final userId = await SharedPreferenceHelper.getUserNumber();
     final sessionId = await SharedPreferenceHelper.getUserSessionId();
     final oprId = routes.first.oprId;
@@ -555,6 +692,26 @@ class _HomeScreenState extends State<HomeScreen>
       );
       Logger().i(responseLocation);
       //[{result: ok}, {data: [{operation_status: 0, current_location: , stop_details: [{"1":["Mumbai","08:00","08:30","18.9581934,72.8320729"]},{"2":["Goa","10:00","10:00","15.30106506,74.13523982"]}]}]}]
+      //now update the bus active status in ChildrenProvider
+      if (responseLocation.statusCode == 200 &&
+          responseLocation.data.isNotEmpty &&
+          responseLocation.data[0]['result'] == 'ok' &&
+          responseLocation.data.length > 1) {
+        final operationData = responseLocation.data[1]['data'];
+        if (operationData is List && operationData.isNotEmpty) {
+          final operationStatus = operationData[0]['operation_status'];
+          String key = '${routeId}_$oprId';
+          final provider = Provider.of<ChildrenProvider>(
+            context,
+            listen: false,
+          );
+          if (operationStatus == 1) {
+            provider.updateActiveRoutes(key, true);
+          } else {
+            provider.updateActiveRoutes(key, false);
+          }
+        }
+      }
 
       //get stop_list from database
       final sqliteStopList = await _sqfliteHelper.getStopListByOprIdAndRouteId(
@@ -703,7 +860,11 @@ class _HomeScreenState extends State<HomeScreen>
   //   );
   // }
 
-  _onDeleteTap(String routeId, List<RouteInfo> routes, String studentId) async {
+  Future<void> _onDeleteTap(
+    String routeId,
+    List<RouteInfo> routes,
+    String studentId,
+  ) async {
     //userId
     final userId = await SharedPreferenceHelper.getUserNumber();
     final sessonId = await SharedPreferenceHelper.getUserSessionId();
@@ -851,8 +1012,7 @@ class _HomeScreenState extends State<HomeScreen>
           Logger().i("Match result: $isMatch");
           if (isMatch) {
             Logger().i("MATCHED → Saving oprid: $oprid | route_id: $routeId");
-            /*may be for map */
-            // await _saveRouteToDatabase(route);
+            await _saveRouteToDatabase(route);
             Logger().i(
               "Updating children route_info for tspId: $tspId | route_id: $routeId",
             );
@@ -1112,7 +1272,7 @@ class _HomeScreenState extends State<HomeScreen>
       Logger().e('Error fetching notifications: ${result['error']}');
     }
   }
-  
+
   String? _getRouteTimeByStopName(route, Set<String> stopName) {
     try {
       final List<dynamic> stopDetails = jsonDecode(route);

@@ -45,4 +45,19 @@ class PermissionService {
       // Permission permanently denied
     }
   }
+
+  static Future<void> requestIgnoreBatteryOptimizations() async {
+    if (await Permission.ignoreBatteryOptimizations.isGranted) {
+      return;
+    }
+
+    final status = await Permission.ignoreBatteryOptimizations.request();
+    if (status.isGranted) {
+      // Permission granted
+    } else if (status.isDenied) {
+      // Permission denied
+    } else if (status.isPermanentlyDenied) {
+      // Permission permanently denied
+    }
+  }
 }

@@ -1,20 +1,24 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' as rendering;
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
-import 'package:kiddo_tracker/services/mqtt_task_handler.dart';
+
 import 'package:kiddo_tracker/services/notification_service.dart';
 import 'package:kiddo_tracker/services/workmanager_callback.dart';
+import 'package:kiddo_tracker/services/background_service.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
-import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 // Helper function to get subscribed topics from shared preferences
 Future<List<String>> _getSubscribedTopics() async {
@@ -22,39 +26,15 @@ Future<List<String>> _getSubscribedTopics() async {
   return prefs.getStringList('subscribed_topics') ?? [];
 }
 
-void _initService() {
-  FlutterForegroundTask.init(
-    androidNotificationOptions: AndroidNotificationOptions(
-      channelId: 'foreground_service',
-      channelName: 'Foreground Service Notification',
-      channelDescription:
-          'This notification appears when the foreground service is running.',
-      onlyAlertOnce: true,
-    ),
-    iosNotificationOptions: const IOSNotificationOptions(
-      showNotification: false,
-      playSound: false,
-    ),
-    foregroundTaskOptions: ForegroundTaskOptions(
-      eventAction: ForegroundTaskEventAction.repeat(5000),
-      autoRunOnBoot: true,
-      autoRunOnMyPackageReplaced: true,
-      allowWakeLock: true,
-      allowWifiLock: true,
-    ),
-  );
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   rendering.debugRepaintRainbowEnabled = true;
+  // Initialize background service
+  await BackgroundService.initialize();
   // Initialize AndroidAlarmManager
   await AndroidAlarmManager.initialize();
   // Initialize notifications
   await NotificationService.initialize();
-  // Initialize port for communication between TaskHandler and UI.
-  FlutterForegroundTask.initCommunicationPort();
-  _initService();
   //workManager
   Workmanager().initialize(workmanagerDispatcher, isInDebugMode: false);
   // Runs once every 24 hours to reset the alarm
@@ -80,22 +60,15 @@ void main() async {
     // Continue with app startup even if .env loading fails
   }
 
+  // Initialize Google Maps for Android
+  AndroidGoogleMapsFlutter.useAndroidViewSurface = false;
+
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => ChildrenProvider())],
       child: const MainApp(),
     ),
   );
-
-  // Start MQTT foreground task if user is logged in and has subscribed topics
-  final isLoggedIn = await SharedPreferenceHelper.getUserLoggedIn();
-  if (isLoggedIn == true) {
-    final topics = await _getSubscribedTopics();
-    if (topics.isNotEmpty) {
-      Logger().i('Starting MQTT foreground task with topics: $topics');
-      await startMQTTForegroundTask(topics);
-    }
-  }
 }
 
 class MainApp extends StatefulWidget {

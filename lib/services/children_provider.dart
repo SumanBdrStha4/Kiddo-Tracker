@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/model/child.dart';
 import 'package:kiddo_tracker/model/subscribe.dart';
 import 'package:kiddo_tracker/mqtt/MQTTService.dart';
-import 'package:kiddo_tracker/services/mqtt_task_handler.dart';
+import 'package:kiddo_tracker/services/background_service.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -109,10 +109,10 @@ class ChildrenProvider with ChangeNotifier {
     service.subscribeToTopics(currentTopics.toList());
     _subscribedTopics.addAll(currentTopics.toList());
 
-    // Save topics to shared preferences and start foreground task
+    // Save topics to shared preferences and start background service
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('subscribed_topics', currentTopics.toList());
-    await startMQTTForegroundTask(currentTopics.toList());
+    await BackgroundService.start();
   }
 
   //for newly added child

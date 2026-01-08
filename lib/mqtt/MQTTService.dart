@@ -28,6 +28,7 @@ class MQTTService {
     client.logging(on: true);
     client.keepAlivePeriod = 60;
     client.autoReconnect = true;
+    client.resubscribeOnAutoReconnect = true;
     client.onAutoReconnect = onAutoReconnect;
     client.onAutoReconnected = onAutoReconnected;
     client.onConnected = onConnected;
@@ -46,10 +47,10 @@ class MQTTService {
     client.connectionMessage = connMess;
 
     try {
-      onConnectionStatusChanged('Connecting...');
+      onConnectionStatusChanged?.call('Connecting...');
       await client.connect();
     } catch (e) {
-      onConnectionStatusChanged('Connection failed: $e');
+      onConnectionStatusChanged?.call('Connection failed: $e');
       client.disconnect();
       return;
     }
@@ -59,7 +60,7 @@ class MQTTService {
       Logger().i("/kiddotrac/$topic");
       client.subscribe("/kiddotrac/$topic", MqttQos.exactlyOnce);
     }
-    onConnectionStatusChanged('Connected');
+    onConnectionStatusChanged?.call('Connected');
 
     client.updates!.listen((List<MqttReceivedMessage<MqttMessage?>>? c) {
       final MqttPublishMessage recMessage = c![0].payload as MqttPublishMessage;
@@ -67,8 +68,10 @@ class MQTTService {
         recMessage.payload.message,
       );
 
-      onMessageReceived(payload);
-      onLogMessage('Received message: $payload from topic: ${c[0].topic}');
+      onMessageReceived?.call(payload);
+      onLogMessage?.call(
+        'Received message: $payload from topic: ${c[0].topic}',
+      );
     });
   }
 
@@ -77,36 +80,36 @@ class MQTTService {
     for (var topic in subscribedTopics) {
       client.subscribe("/kiddotrac/$topic", MqttQos.exactlyOnce);
     }
-    onConnectionStatusChanged('Connected');
+    onConnectionStatusChanged?.call('Connected');
   }
 
   void onDisconnected() {
-    onConnectionStatusChanged('Disconnected');
+    onConnectionStatusChanged?.call('Disconnected');
   }
 
   void onAutoReconnect() {
-    onLogMessage('Client auto reconnection sequence will start');
+    onLogMessage?.call('Client auto reconnection sequence will start');
   }
 
   void onAutoReconnected() {
-    onLogMessage('Client auto reconnection sequence has completed');
-    onConnectionStatusChanged('Auto Connected');
+    onLogMessage?.call('Client auto reconnection sequence has completed');
+    onConnectionStatusChanged?.call('Auto Connected');
   }
 
   void onSubscribed(String topic) {
-    onLogMessage('Subscribed topic: $topic');
+    onLogMessage?.call('Subscribed topic: $topic');
   }
 
   void onSubscribeFail(String topic) {
-    onLogMessage('Failed to subscribe $topic');
+    onLogMessage?.call('Failed to subscribe $topic');
   }
 
   void onUnsubscribed(String? topic) {
-    onLogMessage('Unsubscribed topic: $topic');
+    onLogMessage?.call('Unsubscribed topic: $topic');
   }
 
   void pong() {
-    onLogMessage('Ping response client callback invoked');
+    onLogMessage?.call('Ping response client callback invoked');
   }
 
   void disconnect() {
@@ -119,7 +122,7 @@ class MQTTService {
     if (client.connectionStatus?.state == MqttConnectionState.connected) {
       for (var topic in topics) {
         client.subscribe("/kiddotrac/$topic", MqttQos.exactlyOnce);
-        onLogMessage('Subscribed to topic: $topic');
+        onLogMessage?.call('Subscribed to topic: $topic');
       }
     }
   }
@@ -129,7 +132,7 @@ class MQTTService {
     subscribedTopics.add(topic);
     if (client.connectionStatus?.state == MqttConnectionState.connected) {
       client.subscribe("/kiddotrac/$topic", MqttQos.exactlyOnce);
-      onLogMessage('Subscribed to topic: $topic');
+      onLogMessage?.call('Subscribed to topic: $topic');
     }
   }
 
@@ -137,7 +140,7 @@ class MQTTService {
   // void unsubscribeFromAllTopics() {
   //   for (var topic in subscribedTopics) {
   //     client.unsubscribe("/kiddotrac/$topic");
-  //     onLogMessage('Unsubscribed from topic: $topic');
+  //     onLogMessage?.call('Unsubscribed from topic: $topic');
   //   }
   // }
 
@@ -145,7 +148,7 @@ class MQTTService {
   void unsubscribeFromTopics(List<String> topics) {
     for (var topic in topics) {
       client.unsubscribe("/kiddotrac/$topic");
-      onLogMessage('Unsubscribed from topic: $topic');
+      onLogMessage?.call('Unsubscribed from topic: $topic');
     }
   }
 }
