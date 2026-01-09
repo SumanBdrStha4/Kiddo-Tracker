@@ -1,6 +1,10 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/model/route.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
@@ -44,6 +48,8 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
   String offboardTime = '_';
   String onLocation = '_';
   String offLocation = '_';
+  String distanceToStop = '_';
+  String distanceToSchool = '_';
   final SqfliteHelper _sqfliteHelper = SqfliteHelper();
   late ChildrenProvider _childrenProvider;
 
@@ -74,8 +80,6 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
   Future<void> _fetchActivityTimes() async {
     if (widget.routes.isNotEmpty) {
       final route = widget.routes.first;
-      //get current date onboard time and offboard time
-      //also upadate onboard time and offboard time if same student message is received
       final times = await _sqfliteHelper.getActivityTimesForRoute(
         route.routeId,
         route.oprId.toString(),
@@ -83,12 +87,166 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
       );
       Logger().d('Fetched activity times: $times');
       setState(() {
-        onboardTime = times['onboard']?['message_time']?.toString() ?? '_';
-        offboardTime = times['offboard']?['message_time']?.toString() ?? '_';
+        final String? onboardMsg = times['onboard']?['message_time']
+            ?.toString();
+        final String? offboardMsg = times['offboard']?['message_time']
+            ?.toString();
+
+        onboardTime = onboardMsg != null ? _formatTime(onboardMsg) : '_';
+        offboardTime = offboardMsg != null ? _formatTime(offboardMsg) : '_';
         onLocation = times['onboard']?['on_location']?.toString() ?? '_';
         offLocation = times['offboard']?['off_location']?.toString() ?? '_';
       });
+      await _calculateDistances();
     }
+  }
+
+  double _bearingBetween(double lat1, double lng1, double lat2, double lng2) {
+    final lat1Rad = lat1 * pi / 180;
+    final lat2Rad = lat2 * pi / 180;
+    final dLng = (lng2 - lng1) * pi / 180;
+
+    final y = sin(dLng) * cos(lat2Rad);
+    final x =
+        cos(lat1Rad) * sin(lat2Rad) - sin(lat1Rad) * cos(lat2Rad) * cos(dLng);
+
+    double bearing = atan2(y, x) * 180 / pi;
+    return (bearing + 360) % 360;
+  }
+
+  String _directionLabel({
+    required double routeBearing,
+    required double userBearing,
+    required double distanceKm,
+  }) {
+    const double closeThresholdKm = 0.2; // 200 meters
+    const double tolerance = 45; // degrees
+
+    if (distanceKm <= closeThresholdKm) {
+      return 'Close to';
+    }
+
+    double diff = (userBearing - routeBearing).abs();
+    diff = diff > 180 ? 360 - diff : diff;
+
+    if (diff <= tolerance) {
+      return 'Forward';
+    } else if (diff >= 180 - tolerance) {
+      return 'Backward';
+    } else {
+      return 'Side';
+    }
+  }
+
+  Future<void> _calculateDistances() async {
+    if (widget.routes.isEmpty) return;
+
+    final route = widget.routes.first;
+    String stopLoc = route.stopLocation;
+    String schoolLoc = route.schoolLocation;
+
+    // Parse onLocation and offLocation as lat,lng
+    double? onLat, onLng, offLat, offLng;
+    if (onLocation != '_') {
+      List<String> parts = onLocation.split(',');
+      if (parts.length == 2) {
+        onLat = double.tryParse(parts[0]);
+        onLng = double.tryParse(parts[1]);
+      }
+    }
+    if (offLocation != '_') {
+      List<String> parts = offLocation.split(',');
+      if (parts.length == 2) {
+        offLat = double.tryParse(parts[0]);
+        offLng = double.tryParse(parts[1]);
+      }
+    }
+
+    // Geocode stopLocation and schoolLocation
+    double? stopLat, stopLng, schoolLat, schoolLng;
+    try {
+      List<Location> stopLocations = await locationFromAddress(stopLoc);
+      if (stopLocations.isNotEmpty) {
+        stopLat = stopLocations.first.latitude;
+        stopLng = stopLocations.first.longitude;
+      }
+    } catch (e) {
+      Logger().e('Error geocoding stopLocation: $e');
+    }
+    try {
+      List<Location> schoolLocations = await locationFromAddress(schoolLoc);
+      if (schoolLocations.isNotEmpty) {
+        schoolLat = schoolLocations.first.latitude;
+        schoolLng = schoolLocations.first.longitude;
+      }
+    } catch (e) {
+      Logger().e('Error geocoding schoolLocation: $e');
+    }
+
+    // Calculate distances
+    String distToStop = '_';
+    String distToSchool = '_';
+    if (stopLat != null &&
+        stopLng != null &&
+        schoolLat != null &&
+        schoolLng != null) {
+      // Route direction: Stop -> School
+      final routeBearing = _bearingBetween(
+        stopLat,
+        stopLng,
+        schoolLat,
+        schoolLng,
+      );
+
+      // Distance + direction to STOP (onLocation)
+      if (onLat != null && onLng != null) {
+        final distanceKm =
+            Geolocator.distanceBetween(stopLat, stopLng, onLat, onLng) / 1000;
+
+        final userBearing = _bearingBetween(stopLat, stopLng, onLat, onLng);
+
+        final relation = _directionLabel(
+          routeBearing: routeBearing,
+          userBearing: userBearing,
+          distanceKm: distanceKm,
+        );
+        distToStop = '${distanceKm.toStringAsFixed(2)} km ($relation)';
+      }
+      if (offLat != null && offLng != null) {
+        final distanceKm =
+            Geolocator.distanceBetween(schoolLat, schoolLng, offLat, offLng) /
+            1000;
+
+        final userBearing = _bearingBetween(stopLat, stopLng, offLat, offLng);
+
+        final relation = _directionLabel(
+          routeBearing: routeBearing,
+          userBearing: userBearing,
+          distanceKm: distanceKm,
+        );
+
+        distToSchool = '${distanceKm.toStringAsFixed(2)} km ($relation)';
+      }
+    }
+    // if (stopLat != null && stopLng != null && onLat != null && onLng != null) {
+    //   double distance =
+    //       Geolocator.distanceBetween(stopLat, stopLng, onLat, onLng) /
+    //       1000; // km
+    //   distToStop = '${distance.toStringAsFixed(2)} km';
+    // }
+    // if (schoolLat != null &&
+    //     schoolLng != null &&
+    //     offLat != null &&
+    //     offLng != null) {
+    //   double distance =
+    //       Geolocator.distanceBetween(schoolLat, schoolLng, offLat, offLng) /
+    //       1000; // km
+    //   distToSchool = '${distance.toStringAsFixed(2)} km';
+    // }
+    setState(() {
+      distanceToStop = distToStop;
+      distanceToSchool = distToSchool;
+    });
   }
 
   @override
@@ -142,7 +300,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                               ),
                               child: Icon(
                                 Icons.directions_bus_outlined,
-                                size: 15,
+                                size: 25,
                                 color: color,
                               ),
                             ),
@@ -171,29 +329,29 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                                 color: Colors.grey,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Home: ${widget.routes.first.stopLocation}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            Text(
-                              'School: ${widget.routes.first.schoolLocation}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.grey,
-                              ),
-                            ),
+                            // const SizedBox(height: 4),
+                            // Text(
+                            //   'Home: ${widget.routes.first.stopLocation}',
+                            //   style: const TextStyle(
+                            //     fontSize: 12,
+                            //     fontWeight: FontWeight.w400,
+                            //     color: Colors.grey,
+                            //   ),
+                            // ),
+                            // Text(
+                            //   'School: ${widget.routes.first.schoolLocation}',
+                            //   style: const TextStyle(
+                            //     fontSize: 12,
+                            //     fontWeight: FontWeight.w400,
+                            //     color: Colors.grey,
+                            //   ),
+                            // ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 4),
                   InkWell(
                     onTap: () =>
                         widget.onOnboardTap!(widget.routeId, widget.routes),
@@ -214,7 +372,11 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                '($onLocation at $onboardTime)',
+                                onboardTime == '_'
+                                    ? " "
+                                    : '(At $onboardTime, \n$distanceToStop)',
+                                // '(At $onboardTime, \n$distanceToStop)',
+                                // '($onLocation at $onboardTime, \n$distanceToStop)',
                                 style: const TextStyle(
                                   color: Colors.blue,
                                   fontSize: 14,
@@ -250,7 +412,10 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '($offLocation at $offboardTime)',
+                            offboardTime == '_'
+                                ? " "
+                                : '(At $offboardTime, \n$distanceToSchool)',
+                            // '($offLocation at $offboardTime, \n$distanceToSchool)',
                             style: const TextStyle(
                               color: Colors.blue,
                               fontSize: 14,
@@ -379,6 +544,21 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
         ),
       ),
     ).animate().fade(duration: 600.ms).slide(begin: const Offset(0, 0.1));
+  }
+
+  String _formatTime(String createdAt) {
+    //convert the timestamp to local time
+    try {
+      int millis = int.parse(createdAt);
+      DateTime localDateTime = DateTime.fromMillisecondsSinceEpoch(
+        millis,
+        isUtc: true,
+      ).toLocal();
+      return DateFormat("hh:mm a").format(localDateTime);
+      // return DateFormat("MMM dd, yyyy 'at' hh:mm a").format(localDateTime);
+    } catch (e) {
+      return createdAt;
+    }
   }
 
   Future<void> _showStopageDialog() async {

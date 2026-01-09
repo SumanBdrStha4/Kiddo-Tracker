@@ -176,6 +176,8 @@ class SqfliteHelper {
     final String today = DateTime.now().toIso8601String().split(
       'T',
     )[0]; // Get current date in YYYY-MM-DD format
+
+    //current data with high Journey id
     final List<Map<String, dynamic>> results = await dbClient.query(
       'activityStatus',
       where:
