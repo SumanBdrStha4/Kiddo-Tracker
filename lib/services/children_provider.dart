@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/model/child.dart';
+import 'package:kiddo_tracker/model/route.dart';
 import 'package:kiddo_tracker/model/subscribe.dart';
 import 'package:kiddo_tracker/mqtt/MQTTService.dart';
 import 'package:kiddo_tracker/services/background_service.dart';
@@ -24,6 +25,7 @@ class ChildrenProvider with ChangeNotifier {
   );
   final ValueNotifier<List<Map<String, dynamic>>> _activitiesNotifier =
       ValueNotifier([]);
+  final ValueNotifier<int> _boardRefreshNotifier = ValueNotifier(0);
 
   List<Child> get children => _children;
   Map<String, SubscriptionPlan> get studentSubscriptions =>
@@ -38,6 +40,7 @@ class ChildrenProvider with ChangeNotifier {
       _activeRoutesNotifier;
   ValueNotifier<List<Map<String, dynamic>>> get activitiesNotifier =>
       _activitiesNotifier;
+  ValueNotifier<int> get boardRefreshNotifier => _boardRefreshNotifier;
 
   void setMqttService(MQTTService service) {
     _mqttService = service;
@@ -90,6 +93,10 @@ class ChildrenProvider with ChangeNotifier {
         status: _children[childIndex].status,
         onboard_status: status,
       );
+      // Update the granular notifier for this child
+      if (_childNotifiers.containsKey(studentId)) {
+        _childNotifiers[studentId]!.value = _children[childIndex];
+      }
       notifyListeners();
     }
   }
@@ -198,6 +205,25 @@ class ChildrenProvider with ChangeNotifier {
     } catch (e) {
       Logger().e('Error getting child name by ID: $e');
       return "";
+    }
+  }
+
+  Future<void> updateChildBoardLocation(
+    String studentId,
+    String route_id,
+    String opr_id,
+  ) async {
+    try {
+      // Fetch the latest activity times to ensure data is up to date
+      await _sqfliteHelper.getActivityTimesForRoute(
+        route_id,
+        opr_id,
+        studentId,
+      );
+      // Increment the board refresh notifier to trigger UI update
+      _boardRefreshNotifier.value++;
+    } catch (e) {
+      Logger().e('Error updating child board location: $e');
     }
   }
 }

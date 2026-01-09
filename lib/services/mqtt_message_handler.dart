@@ -8,6 +8,7 @@ import 'package:logger/logger.dart';
 /// Unified MQTT message handler for both background and foreground
 class MQTTMessageHandler {
   static final Logger logger = Logger();
+  static int journyID = 0;
 
   /// Main entry point for handling MQTT messages
   static Future<void> handleMQTTMessage(
@@ -198,18 +199,27 @@ class MQTTMessageHandler {
       final offBoardLocation = status == 2
           ? jsonMessage['data']['location']
           : '';
+      String journeyID = status == 1
+          ? (++journyID).toString().padLeft(4, '0')
+          : journyID.toString().padLeft(4, '0');
+        
+
       Logger().i(
         'Inserting activity for studentId: $studentId, status: ${status == 1 ? 'onboarded' : 'offboarded'}',
       );
+      String route_Id = jsonMessage['devid'].split('_')[0];
+      String opr_Id = jsonMessage['devid'].split('_')[1];
+
       await sqfliteHelper.insertActivity({
         'student_id': studentId,
         'student_name': childName,
         'status': status == 1 ? 'onboarded' : 'offboarded',
         'on_location': onBoardLocation,
         'off_location': offBoardLocation,
-        'route_id': jsonMessage['devid'].split('_')[0],
-        'oprid': jsonMessage['devid'].split('_')[1],
+        'route_id': route_Id,
+        'oprid': opr_Id,
         'message_time': jsonMessage['timestamp'],
+        'journey_id': journeyID,
       });
 
       // Update provider if in foreground
@@ -220,6 +230,7 @@ class MQTTMessageHandler {
         if (childIndex != -1) {
           provider.updateChildOnboardStatus(studentId, status);
           provider.updateActivity();
+          provider.updateChildBoardLocation(studentId, route_Id, opr_Id);
           logger.i(
             'Updated child $studentId status to ${status == 1 ? 'onboarded' : 'offboarded'} in provider',
           );

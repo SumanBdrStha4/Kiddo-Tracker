@@ -42,14 +42,25 @@ class RouteCardWidget extends StatefulWidget {
 class _RouteCardWidgetState extends State<RouteCardWidget> {
   String onboardTime = '_';
   String offboardTime = '_';
-  String onlocation = '_';
-  String offlocation = '_';
+  String onLocation = '_';
+  String offLocation = '_';
   final SqfliteHelper _sqfliteHelper = SqfliteHelper();
+  late ChildrenProvider _childrenProvider;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _childrenProvider = Provider.of<ChildrenProvider>(context, listen: false);
+      _childrenProvider.boardRefreshNotifier.addListener(_fetchActivityTimes);
+    });
     _fetchActivityTimes();
+  }
+
+  @override
+  void dispose() {
+    _childrenProvider.boardRefreshNotifier.removeListener(_fetchActivityTimes);
+    super.dispose();
   }
 
   @override
@@ -72,10 +83,10 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
       );
       Logger().d('Fetched activity times: $times');
       setState(() {
-        onboardTime = times['onboardTime'] ?? '_';
-        offboardTime = times['offboardTime'] ?? '_';
-        onlocation = times['onLocation'] ?? '_';
-        offlocation = times['offLocation'] ?? '_';
+        onboardTime = times['onboard']?['message_time']?.toString() ?? '_';
+        offboardTime = times['offboard']?['message_time']?.toString() ?? '_';
+        onLocation = times['onboard']?['on_location']?.toString() ?? '_';
+        offLocation = times['offboard']?['off_location']?.toString() ?? '_';
       });
     }
   }
@@ -203,7 +214,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                '($onlocation)',
+                                '($onLocation at $onboardTime)',
                                 style: const TextStyle(
                                   color: Colors.blue,
                                   fontSize: 14,
@@ -239,7 +250,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '($offlocation)',
+                            '($offLocation at $offboardTime)',
                             style: const TextStyle(
                               color: Colors.blue,
                               fontSize: 14,

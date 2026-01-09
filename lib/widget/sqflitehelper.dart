@@ -98,6 +98,7 @@ class SqfliteHelper {
       route_id TEXT,
       oprid TEXT,
       message_time TEXT,
+      journey_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     ''');
@@ -166,7 +167,7 @@ class SqfliteHelper {
     return await dbClient.query('activityStatus');
   }
 
-  Future<Map<String, String>> getActivityTimesForRoute(
+  Future<Map<String, Map<String, dynamic>?>> getActivityTimesForRoute(
     String routeId,
     String oprid,
     String studentId,
@@ -183,38 +184,43 @@ class SqfliteHelper {
       orderBy: 'created_at ASC',
     );
     Logger().i(results);
-    String onboardTime = '_';
-    String offboardTime = '_';
-    String onLocation = '_';
-    String offLocation = '_';
 
-    // Sort results by created_at descending to get the latest
-    List<Map<String, dynamic>> sortedResults = List.from(results);
-    sortedResults.sort((a, b) => b['created_at'].compareTo(a['created_at']));
-
-    Map<String, dynamic>? latest = sortedResults.isNotEmpty
-        ? sortedResults.first
-        : null;
-
-    if (latest != null) {
-      // Check if the latest entry's status is 'onboarded'
-      if (latest['status'] == 'onboarded') {
-        onboardTime = latest['message_time'].toString();
-        onLocation = latest['on_location'];
-      }
-      // Check if the latest entry's status is 'offboarded'
-      else if (latest['status'] == 'offboarded') {
-        offboardTime = latest['message_time'].toString();
-        offLocation = latest['off_location'];
-      }
+    // Filter results to only those with journey_id not null
+    List<Map<String, dynamic>> withJourney = results
+        .where((r) => r['journey_id'] != null)
+        .toList();
+    if (withJourney.isEmpty) {
+      return {'onboard': null, 'offboard': null};
     }
 
-    return {
-      'onboardTime': onboardTime,
-      'offboardTime': offboardTime,
-      'onLocation': onLocation,
-      'offLocation': offLocation,
-    };
+    // Sort by created_at descending to get the latest journey_id
+    withJourney.sort((a, b) => b['created_at'].compareTo(a['created_at']));
+    String latestJourneyId = withJourney.first['journey_id'];
+
+    // Get all records for the latest journey_id
+    List<Map<String, dynamic>> journeyResults = results
+        .where((r) => r['journey_id'] == latestJourneyId)
+        .toList();
+
+    // Find the latest onboarded record for this journey
+    List<Map<String, dynamic>> onboarded = journeyResults
+        .where((r) => r['status'] == 'onboarded')
+        .toList();
+    onboarded.sort((a, b) => b['created_at'].compareTo(a['created_at']));
+    Map<String, dynamic>? latestOnboard = onboarded.isNotEmpty
+        ? onboarded.first
+        : null;
+
+    // Find the latest offboarded record for this journey
+    List<Map<String, dynamic>> offboarded = journeyResults
+        .where((r) => r['status'] == 'offboarded')
+        .toList();
+    offboarded.sort((a, b) => b['created_at'].compareTo(a['created_at']));
+    Map<String, dynamic>? latestOffboard = offboarded.isNotEmpty
+        ? offboarded.first
+        : null;
+
+    return {'onboard': latestOnboard, 'offboard': latestOffboard};
   }
 
   // User CRUD

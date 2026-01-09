@@ -1,11 +1,5 @@
-# Unify MQTT Message Handling for Active/Deactivate in Background and Foreground
-
-## Tasks
-
-- [x] Add imports for SqfliteHelper and json in background_service.dart
-- [x] Modify onMessageReceived callback to parse JSON messages
-- [x] Handle msgtype 2 (onboard): Fetch child name, show notification, save activity
-- [x] Handle msgtype 3 (offboard): Fetch child names for offlist, show notifications, save activities
-- [x] Handle msgtype 1 (bus activate): Fetch route name, show notification
-- [x] Handle msgtype 4 (bus deactivate): Fetch route name, show notification
-- [x] Test the changes
+- [x] Remove onLocation and offLocation from RouteInfo model
+- [x] Add boardRefreshNotifier to ChildrenProvider
+- [x] Modify updateChildBoardLocation to increment boardRefreshNotifier and not set locations in RouteInfo
+- [x] Update route_card_widget.dart to add onLocation and offLocation state variables, fetch them in \_fetchActivityTimes, display with times, and listen to boardRefreshNotifier
+- [x] Modify getActivityTimesForRoute to filter by journey_id instead of route_id, returning onboard and offboard records for the latest journey

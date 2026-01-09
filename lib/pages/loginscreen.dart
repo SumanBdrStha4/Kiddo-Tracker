@@ -52,10 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10),
                 const Text(
                   'Please sign in to continue',
-                  style: TextStyle(
-                    color: Color(0xFF837E93),
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Color(0xFF837E93), fontSize: 16),
                 ),
                 const SizedBox(height: 40),
 
@@ -116,12 +113,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: ElevatedButton(
                           onPressed: () {
                             if (_formKey.currentState!.validate()) {
-                              // callAPI();
-                              Navigator.pushNamed(
-                                context,
-                                AppRoutes.otp,
-                                arguments: "8456029772",
-                              );
+                              callAPI();
+                              // Navigator.pushNamed(
+                              //   context,
+                              //   AppRoutes.otp,
+                              //   arguments: "8456029772",
+                              // );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -186,6 +183,27 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final mobileNumber = _mobileController.text;
+    if (mobileNumber.isEmpty || mobileNumber.length < 10) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid mobile number')),
+      );
+      return;
+    }
+
+    if (mobileNumber == '8456029772') {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mobile number granted for testing')),
+      );
+      Navigator.pushNamed(context, AppRoutes.otp, arguments: mobileNumber);
+      return;
+    }
+    
     ApiService.sendOTP(mobileNumber)
         .then((response) {
           setState(() {
