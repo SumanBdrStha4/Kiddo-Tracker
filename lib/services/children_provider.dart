@@ -182,9 +182,11 @@ class ChildrenProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void updateActiveRoutes(String key, bool isActive) {
-    _activeRoutesNotifier.value = Map.from(_activeRoutesNotifier.value)
+  Future<void> updateActiveRoutes(String key, bool isActive) async {
+    Logger().i('Updating active route: $key to $isActive');
+    _activeRoutesNotifier.value = await Map.from(_activeRoutesNotifier.value)
       ..[key] = isActive;
+    notifyListeners();
   }
 
   Future<void> updateActivity() async {

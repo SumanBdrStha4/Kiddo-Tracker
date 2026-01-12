@@ -1,5 +1,7 @@
-- [x] Remove onLocation and offLocation from RouteInfo model
-- [x] Add boardRefreshNotifier to ChildrenProvider
-- [x] Modify updateChildBoardLocation to increment boardRefreshNotifier and not set locations in RouteInfo
-- [x] Update route_card_widget.dart to add onLocation and offLocation state variables, fetch them in \_fetchActivityTimes, display with times, and listen to boardRefreshNotifier
-- [x] Modify getActivityTimesForRoute to filter by journey_id instead of route_id, returning onboard and offboard records for the latest journey
+- [] Add retry mechanism in onAutoReconnected for failed auto-reconnections
+- [] Add periodic connection check using Timer
+- [] Import dart:async for Timer
+- [] Add variables: Timer? \_connectionCheckTimer, int \_retryCount = 0, const int maxRetries = 3
+- [] Modify connect() to start periodic timer
+- [] Modify disconnect() to cancel timer
+- [] Test MQTT auto-reconnection behavior

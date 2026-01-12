@@ -78,6 +78,9 @@ void onStart(ServiceInstance service) async {
 
   // Set up foreground notification for Android
   if (service is AndroidServiceInstance) {
+    // Immediately set as foreground service to comply with Android requirements
+    service.setAsForegroundService();
+
     service.on('setAsForeground').listen((event) {
       service.setAsForegroundService();
     });

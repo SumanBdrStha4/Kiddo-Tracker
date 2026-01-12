@@ -185,7 +185,7 @@ class SqfliteHelper {
       whereArgs: [routeId, oprid, studentId, today],
       orderBy: 'created_at ASC',
     );
-    Logger().i(results);
+    // Logger().i(results);
 
     // Filter results to only those with journey_id not null
     List<Map<String, dynamic>> withJourney = results
@@ -544,12 +544,14 @@ class SqfliteHelper {
               ),
             )
             .toList();
+        Logger().i(routeInfos);
         // Remove the route with matching oprId
-        routeInfos.removeWhere((route) => route.oprId == oprId);
+        routeInfos.removeWhere((route) => route.oprId == int.parse(oprId));
         // Encode back to JSON string
         final updatedRouteInfoStr = jsonEncode(
           routeInfos.map((e) => e.toJson()).toList(),
         );
+        Logger().i(updatedRouteInfoStr);
         // Update the child table
         return await updateRouteInfoByStudentId(studentId, updatedRouteInfoStr);
       }

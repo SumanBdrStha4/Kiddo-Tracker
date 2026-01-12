@@ -768,6 +768,8 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
       String key = '${route.routeId}_${route.oprId}';
       if (activeRoutes[key] == true) {
         return Colors.green; // Active
+      } else if (activeRoutes[key] == false) {
+        return Colors.red; // Inactive
       }
     }
     return Colors.red; // Inactive or default

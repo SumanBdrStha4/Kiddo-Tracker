@@ -49,6 +49,7 @@ class _PINScreenState extends State<PINScreen> {
     try {
       // Save mobile number in shared preferences
       String? result = await SharedPreferenceHelper.getUserNumber();
+      Logger().d("debug: $result");
       if (result != null) {
         mobileNumber = result;
       } else {
@@ -61,11 +62,25 @@ class _PINScreenState extends State<PINScreen> {
         //update new session token
         String newSessionToken = response.data[1]['userdata'][0]['sessionid']
             .toString();
-        //update the tag_id in sqflite base on student_id
-        await _sqfliteHelper.updateTagId(
-          response.data[2]['studentdata'][0]['tag_id'].toString(),
-          response.data[2]['studentdata'][0]['student_id'].toString(),
-        );
+        // handle the empty case.
+        if (response.data[2]['studentdata'] ==
+            'ktuserstudentlist Data not found') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No student data found for this user.'),
+            ),
+          );
+          setState(() {
+            _isLoading = false;
+          });
+        } else {
+          Logger().d("debug: ${response.data[2]['studentdata']}");
+          //update the tag_id in sqflite base on student_id
+          await _sqfliteHelper.updateTagId(
+            response.data[2]['studentdata'][0]['tag_id'].toString(),
+            response.data[2]['studentdata'][0]['student_id'].toString(),
+          );
+        }
         /*
         [{result: ok}, {userdata: [{userid: 8456029772, name: Suman Shrestha, city: BBS, state: Odisha, address: khandagiri, contact: 8456029772, email: suman123@gmail.com, mobile: 1234567890, wards: 0, status: 1, pin: 1234, sessionid: 363708456029772}]}, {studentdata: ktuserstudentlist Data not found}]
         */

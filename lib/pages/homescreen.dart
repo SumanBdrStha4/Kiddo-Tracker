@@ -341,6 +341,7 @@ class _HomeScreenState extends State<HomeScreen>
               route.oprId.toString(),
               sessionId,
             );
+            Logger().i(response);
             if (response.statusCode == 200 &&
                 response.data.isNotEmpty &&
                 response.data[0]['result'] == 'ok' &&
@@ -353,9 +354,9 @@ class _HomeScreenState extends State<HomeScreen>
                   listen: false,
                 );
                 if (operationStatus == 1) {
-                  provider.updateActiveRoutes(key, true);
+                  await provider.updateActiveRoutes(key, true);
                 } else {
-                  provider.updateActiveRoutes(key, false);
+                  await provider.updateActiveRoutes(key, false);
                 }
               }
             }
@@ -921,7 +922,7 @@ class _HomeScreenState extends State<HomeScreen>
             // .removeChildOrRouteOprid("route", studentId);
 
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Delete tapped for route $routeId')),
+              SnackBar(content: Text('Delete Success for route $routeId')),
             );
           }
         }

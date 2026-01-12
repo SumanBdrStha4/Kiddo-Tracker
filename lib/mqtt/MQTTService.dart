@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:logger/logger.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
@@ -94,6 +95,7 @@ class MQTTService {
   void onAutoReconnected() {
     onLogMessage?.call('Client auto reconnection sequence has completed');
     onConnectionStatusChanged?.call('Auto Connected');
+    _attemptReconnect();
   }
 
   void onSubscribed(String topic) {
@@ -110,6 +112,12 @@ class MQTTService {
 
   void pong() {
     onLogMessage?.call('Ping response client callback invoked');
+    //check the connection status
+    // if (client.connectionStatus?.state == MqttConnectionState.connected) {
+    //   onConnectionStatusChanged?.call('Connected');
+    // } else {
+    //   onConnectionStatusChanged?.call('Disconnected');
+    // }
   }
 
   void disconnect() {
@@ -150,5 +158,23 @@ class MQTTService {
       client.unsubscribe("/kiddotrac/$topic");
       onLogMessage?.call('Unsubscribed from topic: $topic');
     }
+  }
+
+  void _attemptReconnect() async {
+    try {
+        await client.connect();
+        if (client.connectionStatus?.state == MqttConnectionState.connected) {
+          onConnectionStatusChanged?.call('Reconnected');
+          // Resubscribe to topics
+          for (var topic in subscribedTopics) {
+            client.subscribe("/kiddotrac/$topic", MqttQos.exactlyOnce);
+            onLogMessage?.call(
+              'Resubscribed to topic: $topic after manual reconnection',
+            );
+          }
+        }
+      } catch (e) {
+        onLogMessage?.call('Reconnection attempt failed: $e');
+      }
   }
 }

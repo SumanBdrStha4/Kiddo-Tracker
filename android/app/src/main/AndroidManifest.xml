@@ -55,7 +55,7 @@
             android:value="2" />
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="${GEO_API_KEY}" />
+            android:value="AIzaSyAnhTf79xLDcS0zj_cl_rjAVbx-cIBfwa8" />
         <service
             android:name="be.tramckrijte.workmanager.BackgroundWorker"
             android:permission="android.permission.BIND_JOB_SERVICE"

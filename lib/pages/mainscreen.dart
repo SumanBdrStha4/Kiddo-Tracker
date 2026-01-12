@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kiddo_tracker/pages/activityscreen.dart';
 import 'package:kiddo_tracker/pages/addchildscreen.dart';
 import 'package:kiddo_tracker/pages/changedactivity.dart';
 import 'package:kiddo_tracker/pages/homescreen.dart';
 import 'package:kiddo_tracker/pages/settingscreen.dart';
+import 'package:logger/web.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,15 +17,16 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   //default
   int _selectedIndex = 0;
-  final PageController _pageController = PageController();
+  late PageController _pageController;
   int _notificationCount = 0;
   DateTime? _lastBackPressTime;
 
-  // void incrementNotificationCount() {
-  //   setState(() {
-  //     _notificationCount++;
-  //   });
-  // }
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -38,30 +41,56 @@ class _MainScreenState extends State<MainScreen> {
     super.dispose();
   }
 
-  Future<bool> _onWillPop() async {
-    final now = DateTime.now();
-    if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > Duration(seconds: 2)) {
-      _lastBackPressTime = now;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Press back again to exit')),
+  void _handleBackNavigation() {
+    Logger().d("Back button pressed. Current index: $_selectedIndex");
+    // From any page except page 0, navigate to page 0
+    if (_selectedIndex != 0) {
+      _pageController.animateToPage(
+        _selectedIndex - 1,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
       );
-      return false;
+      setState(() {
+        _selectedIndex = 0;
+      });
     }
-    return true; // Exit app/page
   }
 
   @override
   Widget build(BuildContext context) {
-    // Ensure _selectedIndex is within bounds
+    // Ensuring _selectedIndex is within bounds
     if (_selectedIndex >= 4) {
       _selectedIndex = 0;
     }
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) {
-        if (didPop) return;
-        _onWillPop();
+    return WillPopScope(
+      onWillPop: () async {
+        Logger().d("System back pressed. Current index: $_selectedIndex");
+
+        if (_selectedIndex != 0) {
+          _pageController.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+
+          setState(() {
+            _selectedIndex = 0;
+          });
+
+          return false; // ❗ Prevent app from closing
+        }
+
+        return true; // ✅ Allow app to close from Home
       },
+      // canPop: false, // Disable default back navigation
+      // onPopInvoked: (bool didPop) {
+      //   if (_selectedIndex != 0) {
+      //     _handleBackNavigation();
+      //   } else {
+      //     // Allow app to close when on Home
+      //     SystemNavigator.pop();
+      //   }
+      // },
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
