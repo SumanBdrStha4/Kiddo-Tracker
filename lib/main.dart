@@ -1,9 +1,6 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' as rendering;
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
 

@@ -147,6 +147,8 @@ class NotificationService {
     );
   }
 
+  static void showGeneralNotification({required String title, required String body}) {}
+
   // Consider FCM for critical wake-up scenarios in future implementation
   // TODO: Integrate Firebase Cloud Messaging for push notifications when device is asleep
 }

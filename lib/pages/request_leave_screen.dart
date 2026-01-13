@@ -449,7 +449,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
     }
   }
 
-  _buildLegendItem(String s, Color shade100) {
+  Row _buildLegendItem(String s, Color shade100) {
     return Row(
       children: [
         Container(

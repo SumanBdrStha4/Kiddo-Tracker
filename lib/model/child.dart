@@ -106,7 +106,7 @@ class Child {
     );
   }
 
-  get student_id => studentId;
+  String get student_id => studentId;
 
   Map<String, dynamic> toJson() {
     final routeInfoJson = jsonEncode(routeInfo.map((e) => e.toJson()).toList());

@@ -82,7 +82,8 @@ class SqfliteHelper {
         type INTEGER,
         stop_list TEXT,
         vehicle_id TEXT,
-        stop_details TEXT
+        stop_details TEXT,
+        stop_arrival_time TEXT
       )
     ''');
 
@@ -647,6 +648,7 @@ class SqfliteHelper {
     String vehicleId,
     String routeName,
     int type,
+    String stopArrivalTime,
     String stopList,
     String stopDetails,
   ) async {
@@ -659,6 +661,7 @@ class SqfliteHelper {
         'vehicle_id': vehicleId,
         'route_name': routeName,
         'type': type,
+        'stop_arrival_time': stopArrivalTime,
         'stop_list': stopList,
         'stop_details': stopDetails,
       });
@@ -828,5 +831,19 @@ class SqfliteHelper {
       where: 'student_id = ?',
       whereArgs: [string2],
     );
+  }
+
+  Future<String?> getRouteNameById(String string) async {
+    final dbClient = await db;
+    final results = await dbClient.query(
+      'routes',
+      columns: ['route_name'],
+      where: 'route_id = ?',
+      whereArgs: [string],
+    );
+    if (results.isNotEmpty) {
+      return results.first['route_name'] as String?;
+    }
+    return null;
   }
 }

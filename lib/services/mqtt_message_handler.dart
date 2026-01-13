@@ -207,8 +207,8 @@ class MQTTMessageHandler {
       Logger().i(
         'Inserting activity for studentId: $studentId, status: ${status == 1 ? 'onboarded' : 'offboarded'}',
       );
-      String route_Id = jsonMessage['devid'].split('_')[0];
-      String opr_Id = jsonMessage['devid'].split('_')[1];
+      String routeId = jsonMessage['devid'].split('_')[0];
+      String oprId = jsonMessage['devid'].split('_')[1];
 
       await sqfliteHelper.insertActivity({
         'student_id': studentId,
@@ -216,8 +216,8 @@ class MQTTMessageHandler {
         'status': status == 1 ? 'onboarded' : 'offboarded',
         'on_location': onBoardLocation,
         'off_location': offBoardLocation,
-        'route_id': route_Id,
-        'oprid': opr_Id,
+        'route_id': routeId,
+        'oprid': oprId,
         'message_time': jsonMessage['timestamp'],
         'journey_id': journeyID,
       });
@@ -230,7 +230,7 @@ class MQTTMessageHandler {
         if (childIndex != -1) {
           provider.updateChildOnboardStatus(studentId, status);
           provider.updateActivity();
-          provider.updateChildBoardLocation(studentId, route_Id, opr_Id);
+          provider.updateChildBoardLocation(studentId, routeId, oprId);
           logger.i(
             'Updated child $studentId status to ${status == 1 ? 'onboarded' : 'offboarded'} in provider',
           );

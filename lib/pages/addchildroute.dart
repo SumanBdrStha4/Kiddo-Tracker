@@ -135,9 +135,9 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                         routeId: _selectedRouteId ?? '',
                         routeType: _selectedRouteType ?? 0,
                         routeName: _selectedRouteName ?? '',
-                        startTime: _selectedTime ?? '',
+                        startTime: _selectedStopAriveTime ?? '',
                         stopArrivalTime:
-                            _selectedStopAriveTime ?? '', //_selectedTime ?? '',
+                            _selectedTime ?? '', //_selectedTime ?? '',
                         stopName: _selectedStopageName ?? '',
                         stopLocation: _selectedHomeGeo ?? '',
                         schoolLocation: _schoolStopGeo ?? '',
@@ -146,7 +146,6 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                         stopId: _stopageId ?? 0,
                       ),
                     );
-                    
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -329,6 +328,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
           routeInfo.vehicleId,
           routeInfo.routeName,
           routeInfo.routeType,
+          routeInfo.startTime,
           jsonEncode(stopages),
           jsonEncode(stopages),
         );
@@ -363,7 +363,10 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
       await sqfliteHelper.updateRouteInfoByStudentId(widget.stdId!, newRoute);
       final provider = Provider.of<ChildrenProvider>(context, listen: false);
       await provider.updateChildren();
-      await provider.subscribeToNewRouteTopics(routeInfo.routeId, routeInfo.oprId);
+      await provider.subscribeToNewRouteTopics(
+        routeInfo.routeId,
+        routeInfo.oprId,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("New Route Added Successfully."),

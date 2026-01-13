@@ -13,13 +13,13 @@ class BusCurrentLocationDialog extends StatefulWidget {
   final String busName;
 
   const BusCurrentLocationDialog({
-    Key? key,
+    super.key,
     required this.routeId,
     required this.routes,
     required this.latitude,
     required this.longitude,
     required this.busName,
-  }) : super(key: key);
+  });
 
   @override
   State<BusCurrentLocationDialog> createState() =>
@@ -28,7 +28,7 @@ class BusCurrentLocationDialog extends StatefulWidget {
 
 class _BusCurrentLocationDialogState extends State<BusCurrentLocationDialog> {
   late LatLng _initialPosition;
-  Set<Marker> _markers = {};
+  final Set<Marker> _markers = {};
   late GoogleMapController mapController;
 
   @override

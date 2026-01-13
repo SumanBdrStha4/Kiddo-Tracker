@@ -72,6 +72,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
+  static bool _hasFetchedNotifications = false;
+
   bool _isLoading = true;
   final SqfliteHelper _sqfliteHelper = SqfliteHelper();
 
@@ -154,8 +156,12 @@ class _HomeScreenState extends State<HomeScreen>
     Logger().d("The Alarm will set on: $hour : $minute");
     await scheduleDailyDataLoad(hour, minute);
     // await scheduleDailyDataLoad(15, 40);
-    // Call getNotification in isolate after initialization
-    await getNotificationInIsolate();
+    // Call getNotification in isolate after initialization (only once)
+    if (!_hasFetchedNotifications) {
+      Logger().i('Fetching notifications in isolate');
+      await getNotificationInIsolate();
+      _hasFetchedNotifications = true;
+    }
   }
 
   Future<void> _subscribeToTopics() async {
@@ -173,6 +179,7 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     SharedPreferenceHelper.setAppActive(false);
     _controller.dispose();
+    _hasFetchedNotifications = false;
     super.dispose();
   }
 
@@ -1144,6 +1151,10 @@ class _HomeScreenState extends State<HomeScreen>
 
       // Update route['stop_list'] with the modified list
       route['stop_list'] = jsonEncode(stopList);
+      // show ($arrival - $departure) time
+      // route['stop_arrival_time'] = stopDetailsMap.values
+      //     .map((times) => '(${times['arrival']} - ${times['departure']})')
+      //     .join(', ');
     } catch (e) {
       Logger().e('Error updating stop_list with times: $e');
     }
@@ -1151,7 +1162,7 @@ class _HomeScreenState extends State<HomeScreen>
     await _sqfliteHelper.insertRoute(
       route['oprid'],
       route['route_id'],
-      route['timing'],
+      route['start_time'],
       route['vehicle_id'],
       route['route_name'],
       route['type'],
@@ -1183,6 +1194,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Function to call getNotification in a separate isolate
   Future<void> getNotificationInIsolate() async {
+    Logger().i('Starting getNotificationInIsolate');
     final receivePort = ReceivePort();
     final children = Provider.of<ChildrenProvider>(
       context,
@@ -1253,6 +1265,47 @@ class _HomeScreenState extends State<HomeScreen>
                 'route_id': notice['id'].toString(),
                 'is_read': 0, // 0 for unread, 1 for read
               });
+              //after inserting notification, send a local notification
+              //show base on type
+              if (notice['type'].toString() == '1') {
+                //for tsp notice
+                NotificationService.showGeneralNotification(
+                  title: notice['title'].toString(),
+                  body: notice['description'].toString(),
+                );
+              } else if (notice['type'].toString() == '2') {
+                //for route notice
+                //get route name from route_id
+                final String? routeName = await _sqfliteHelper.getRouteNameById(
+                  notice['id'].toString(),
+                );
+                NotificationService.showGeneralNotification(
+                  title: notice['title'].toString(),
+                  body:
+                      notice['description'].toString() +
+                      (routeName != null
+                          ? ' Update your stop for $routeName'
+                          : ''),
+                );
+              } else if (notice['type'].toString() == '3') {
+                //for timing notice
+                NotificationService.showGeneralNotification(
+                  title: notice['title'].toString(),
+                  body: notice['description'].toString(),
+                );
+              } else if (notice['type'].toString() == '4') {
+                //for vehicle notice
+                NotificationService.showGeneralNotification(
+                  title: notice['title'].toString(),
+                  body: notice['description'].toString(),
+                );
+              } else {
+                //default
+                NotificationService.showGeneralNotification(
+                  title: notice['title'].toString(),
+                  body: notice['description'].toString(),
+                );
+              }
             } else {
               Logger().i("not bull${notice['notice_id']}");
             }

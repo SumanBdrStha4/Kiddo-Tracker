@@ -116,7 +116,7 @@ class RouteSearchCallback {
   // }
 
   // Return the vehicleId for a given timing and routeId
-  getVehicleIdbyTiming(String timing, String routeId) {
+  Object getVehicleIdbyTiming(String timing, String routeId) {
     for (RouteList route in routeList) {
       if (route.timing == timing && route.routeId == routeId) {
         return route.vehicleId;

@@ -9,7 +9,6 @@ import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/model/route.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
-import 'package:kiddo_tracker/utils/in_range.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/web.dart';
@@ -162,25 +161,42 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
       }
     }
 
-    // Geocode stopLocation and schoolLocation
+    // Geocode stopLocation and schoolLocation with timeout
     double? stopLat, stopLng, schoolLat, schoolLng;
-    try {
-      List<Location> stopLocations = await locationFromAddress(stopLoc);
-      if (stopLocations.isNotEmpty) {
-        stopLat = stopLocations.first.latitude;
-        stopLng = stopLocations.first.longitude;
+    if (stopLoc.trim().isNotEmpty && RegExp(r'[a-zA-Z]').hasMatch(stopLoc)) {
+      try {
+        List<Location> stopLocations = await locationFromAddress(
+          stopLoc,
+        ).timeout(const Duration(seconds: 10));
+        if (stopLocations.isNotEmpty) {
+          stopLat = stopLocations.first.latitude;
+          stopLng = stopLocations.first.longitude;
+        }
+      } catch (e) {
+        Logger().e('Error geocoding stopLocation: $e');
       }
-    } catch (e) {
-      Logger().e('Error geocoding stopLocation: $e');
+    } else {
+      Logger().w(
+        'stopLocation is empty, whitespace, or does not contain letters, skipping geocoding',
+      );
     }
-    try {
-      List<Location> schoolLocations = await locationFromAddress(schoolLoc);
-      if (schoolLocations.isNotEmpty) {
-        schoolLat = schoolLocations.first.latitude;
-        schoolLng = schoolLocations.first.longitude;
+    if (schoolLoc.trim().isNotEmpty &&
+        RegExp(r'[a-zA-Z]').hasMatch(schoolLoc)) {
+      try {
+        List<Location> schoolLocations = await locationFromAddress(
+          schoolLoc,
+        ).timeout(const Duration(seconds: 10));
+        if (schoolLocations.isNotEmpty) {
+          schoolLat = schoolLocations.first.latitude;
+          schoolLng = schoolLocations.first.longitude;
+        }
+      } catch (e) {
+        Logger().e('Error geocoding schoolLocation: $e');
       }
-    } catch (e) {
-      Logger().e('Error geocoding schoolLocation: $e');
+    } else {
+      Logger().w(
+        'schoolLocation is empty, whitespace, or does not contain letters, skipping geocoding',
+      );
     }
 
     // Calculate distances
@@ -329,23 +345,23 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                                 color: Colors.grey,
                               ),
                             ),
-                            // const SizedBox(height: 4),
-                            // Text(
-                            //   'Home: ${widget.routes.first.stopLocation}',
-                            //   style: const TextStyle(
-                            //     fontSize: 12,
-                            //     fontWeight: FontWeight.w400,
-                            //     color: Colors.grey,
-                            //   ),
-                            // ),
-                            // Text(
-                            //   'School: ${widget.routes.first.schoolLocation}',
-                            //   style: const TextStyle(
-                            //     fontSize: 12,
-                            //     fontWeight: FontWeight.w400,
-                            //     color: Colors.grey,
-                            //   ),
-                            // ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Home: ${widget.routes.first.stopLocation}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            Text(
+                              'School: ${widget.routes.first.schoolLocation}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey,
+                              ),
+                            ),
                           ],
                         ),
                       ),

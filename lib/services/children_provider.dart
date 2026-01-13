@@ -184,7 +184,7 @@ class ChildrenProvider with ChangeNotifier {
 
   Future<void> updateActiveRoutes(String key, bool isActive) async {
     Logger().i('Updating active route: $key to $isActive');
-    _activeRoutesNotifier.value = await Map.from(_activeRoutesNotifier.value)
+    _activeRoutesNotifier.value = Map.from(_activeRoutesNotifier.value)
       ..[key] = isActive;
     notifyListeners();
   }
@@ -200,7 +200,7 @@ class ChildrenProvider with ChangeNotifier {
     }
   }
 
-  getChildNameById(String childId) {
+  String getChildNameById(String childId) {
     try {
       final child = _children.firstWhere((child) => child.studentId == childId);
       return child.name;
@@ -212,14 +212,14 @@ class ChildrenProvider with ChangeNotifier {
 
   Future<void> updateChildBoardLocation(
     String studentId,
-    String route_id,
-    String opr_id,
+    String routeId,
+    String oprId,
   ) async {
     try {
       // Fetch the latest activity times to ensure data is up to date
       await _sqfliteHelper.getActivityTimesForRoute(
-        route_id,
-        opr_id,
+        routeId,
+        oprId,
         studentId,
       );
       // Increment the board refresh notifier to trigger UI update
