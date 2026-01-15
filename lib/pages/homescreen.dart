@@ -119,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen>
     await _mqttCompleter.future;
     await _subscribeToTopics();
     await _fetchRouteStoapge();
+    await getNotificationInIsolate();
     // Populate stop arrival times after fetching route storage
     stopArrivalTimes.clear();
     final children = Provider.of<ChildrenProvider>(
@@ -156,12 +157,6 @@ class _HomeScreenState extends State<HomeScreen>
     Logger().d("The Alarm will set on: $hour : $minute");
     await scheduleDailyDataLoad(hour, minute);
     // await scheduleDailyDataLoad(15, 40);
-    // Call getNotification in isolate after initialization (only once)
-    if (!_hasFetchedNotifications) {
-      Logger().i('Fetching notifications in isolate');
-      await getNotificationInIsolate();
-      _hasFetchedNotifications = true;
-    }
   }
 
   Future<void> _subscribeToTopics() async {
@@ -968,8 +963,13 @@ class _HomeScreenState extends State<HomeScreen>
         final routeIds = <String>{};
         final oprIds = <String>{};
         final stopName = <String>{};
-        _extractLocalRoutePairs(tsp['routes'], routeIds, oprIds, stopName);
-        Logger().i(routeIds);
+        await _extractLocalRoutePairs(
+          tsp['routes'],
+          routeIds,
+          oprIds,
+          stopName,
+        );
+        Logger().i('$routeIds ');
 
         /// Fetch Remote Route List From API
         await _fetchAndProcessTspRoute(
@@ -1152,22 +1152,23 @@ class _HomeScreenState extends State<HomeScreen>
       // Update route['stop_list'] with the modified list
       route['stop_list'] = jsonEncode(stopList);
       // show ($arrival - $departure) time
-      // route['stop_arrival_time'] = stopDetailsMap.values
-      //     .map((times) => '(${times['arrival']} - ${times['departure']})')
-      //     .join(', ');
+      route['stop_arrival_time'] = stopDetailsMap.values
+          .map((times) => '(${times['arrival']} - ${times['departure']})')
+          .join(', ');
     } catch (e) {
       Logger().e('Error updating stop_list with times: $e');
     }
 
     await _sqfliteHelper.insertRoute(
-      route['oprid'],
-      route['route_id'],
-      route['start_time'],
-      route['vehicle_id'],
-      route['route_name'],
-      route['type'],
-      route['stop_list'],
-      route['stop_details'],
+      route['oprid'] ?? 0,
+      route['route_id'] ?? '',
+      route['start_time'] ?? '',
+      route['vehicle_id'] ?? '',
+      route['route_name'] ?? '',
+      route['type'] ?? 0,
+      route['stop_arrival_time'] ?? '',
+      route['stop_list'] ?? '',
+      route['stop_details'] ?? '',
     );
 
     Logger().i(
@@ -1176,12 +1177,12 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   //
-  void _extractLocalRoutePairs(
+  Future<void> _extractLocalRoutePairs(
     List<dynamic> routes,
     Set<String> routeIds,
     Set<String> oprIds,
     Set<String> stopName,
-  ) {
+  ) async {
     for (var route in routes) {
       routeIds.add(route['route_id']);
       oprIds.add(route['oprid'].toString());
@@ -1223,6 +1224,7 @@ class _HomeScreenState extends State<HomeScreen>
       'sessionId': sessionId,
       'rootIsolateToken': RootIsolateToken.instance!,
     };
+    Logger().i('$message here it is...');
     await Isolate.spawn(getNotificationIsolate, message);
 
     final result = await receivePort.first as Map<String, dynamic>;
@@ -1265,47 +1267,6 @@ class _HomeScreenState extends State<HomeScreen>
                 'route_id': notice['id'].toString(),
                 'is_read': 0, // 0 for unread, 1 for read
               });
-              //after inserting notification, send a local notification
-              //show base on type
-              if (notice['type'].toString() == '1') {
-                //for tsp notice
-                NotificationService.showGeneralNotification(
-                  title: notice['title'].toString(),
-                  body: notice['description'].toString(),
-                );
-              } else if (notice['type'].toString() == '2') {
-                //for route notice
-                //get route name from route_id
-                final String? routeName = await _sqfliteHelper.getRouteNameById(
-                  notice['id'].toString(),
-                );
-                NotificationService.showGeneralNotification(
-                  title: notice['title'].toString(),
-                  body:
-                      notice['description'].toString() +
-                      (routeName != null
-                          ? ' Update your stop for $routeName'
-                          : ''),
-                );
-              } else if (notice['type'].toString() == '3') {
-                //for timing notice
-                NotificationService.showGeneralNotification(
-                  title: notice['title'].toString(),
-                  body: notice['description'].toString(),
-                );
-              } else if (notice['type'].toString() == '4') {
-                //for vehicle notice
-                NotificationService.showGeneralNotification(
-                  title: notice['title'].toString(),
-                  body: notice['description'].toString(),
-                );
-              } else {
-                //default
-                NotificationService.showGeneralNotification(
-                  title: notice['title'].toString(),
-                  body: notice['description'].toString(),
-                );
-              }
             } else {
               Logger().i("not bull${notice['notice_id']}");
             }
@@ -1321,11 +1282,63 @@ class _HomeScreenState extends State<HomeScreen>
       final totalNotifications = newNotificationCount + getUnreadNotice;
       Logger().i('Total notifications to show: $totalNotifications');
       if (totalNotifications > 0) {
+        // Fetch all unread notifications and push notifications in loop
+        final unreadNotifications = await _sqfliteHelper
+            .getUnreadNotifications();
+        Logger().w(unreadNotifications);
+        // Push all notifications concurrently
+        final List<Future<void>> notificationFutures = [];
+        for (var notice in unreadNotifications) {
+          notificationFutures.add(_showNotificationForNotice(notice));
+        }
+        await Future.wait(notificationFutures);
         //update the onNewMessage
         widget.onNewMessage?.call(totalNotifications);
       }
     } else {
       Logger().e('Error fetching notifications: ${result['error']}');
+    }
+  }
+
+  Future<void> _showNotificationForNotice(Map<String, dynamic> notice) async {
+    Logger().w(notice['type']);
+    //show base on type
+    if (notice['type'].toString() == '1') {
+      //for tsp notice
+      NotificationService.showGeneralNotification(
+        title: notice['title'].toString(),
+        body: notice['description'].toString(),
+      );
+    } else if (notice['type'].toString() == '2') {
+      //for route notice
+      //get route name from route_id
+      final String? routeName = await _sqfliteHelper.getRouteNameById(
+        notice['route_id'].toString(),
+      );
+      NotificationService.showGeneralNotification(
+        title: notice['title'].toString(),
+        body:
+            notice['description'].toString() +
+            (routeName != null ? ' Update your stop for $routeName' : ''),
+      );
+    } else if (notice['type'].toString() == '3') {
+      //for timing notice
+      NotificationService.showGeneralNotification(
+        title: notice['title'].toString(),
+        body: notice['description'].toString(),
+      );
+    } else if (notice['type'].toString() == '4') {
+      //for vehicle notice
+      NotificationService.showGeneralNotification(
+        title: notice['title'].toString(),
+        body: notice['description'].toString(),
+      );
+    } else {
+      //default
+      NotificationService.showGeneralNotification(
+        title: notice['title'].toString(),
+        body: notice['description'].toString(),
+      );
     }
   }
 
@@ -1338,7 +1351,11 @@ class _HomeScreenState extends State<HomeScreen>
           List<dynamic> values = detail[key];
           if (values.length >= 3) {
             String stopNameValue = values[0].toString().trim();
-            if (stopName.contains(stopNameValue)) {
+            // Case-insensitive and trimmed matching
+            if (stopName.any(
+              (name) =>
+                  name.trim().toLowerCase() == stopNameValue.toLowerCase(),
+            )) {
               String arrivalTime = values[1].toString();
               String departureTime = values[2].toString();
               return '($arrivalTime - $departureTime)';

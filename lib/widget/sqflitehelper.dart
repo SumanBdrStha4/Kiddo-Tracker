@@ -765,6 +765,16 @@ class SqfliteHelper {
     return count;
   }
 
+  Future<List<Map<String, Object?>>> getUnreadNotifications() async {
+    final dbClient = await db;
+    return await dbClient.query(
+      'notifications',
+      where: 'is_read = ?',
+      whereArgs: [0],
+      orderBy: 'priority DESC, validity DESC',
+    );
+  }
+
   Future<void> updateRouteForStudent(
     String childId,
     RouteInfo updatedRoute,

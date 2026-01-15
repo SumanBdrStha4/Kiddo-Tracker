@@ -11,6 +11,9 @@ class NotificationService {
   // Map to track recent notifications to prevent duplicates
   static final Map<String, DateTime> _recentNotifications = {};
 
+  // Counter for generating unique notification ids
+  static int _nextId = 0;
+
   static Future<void> initialize() async {
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -147,8 +150,12 @@ class NotificationService {
     );
   }
 
-  static void showGeneralNotification({required String title, required String body}) {}
-
-  // Consider FCM for critical wake-up scenarios in future implementation
-  // TODO: Integrate Firebase Cloud Messaging for push notifications when device is asleep
+  static Future<void> showGeneralNotification({
+    required String title,
+    required String body,
+  }) async {
+    //generate new id each time it called.
+    int _id = _nextId++;
+    await showNotification(id: _id, title: title, body: body);
+  }
 }
