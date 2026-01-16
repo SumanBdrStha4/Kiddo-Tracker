@@ -39,6 +39,7 @@ class _ChangedActivityState extends State<ChangedActivity> {
               title: item['title'] as String? ?? '',
               description: item['description'] as String? ?? '',
               isRead: item['is_read'] as int? ?? -1,
+              // show days ago base on current date and time.
               timestamp: item['timestamp'] != null
                   ? DateTime.parse(item['timestamp'] as String)
                   : DateTime.now(),

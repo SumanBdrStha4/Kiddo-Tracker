@@ -12,6 +12,7 @@ class RequestLeaveScreen extends StatefulWidget {
   final String? oprId;
   final String? routeId;
   final String? childId;
+  final List<String>? tspIds;
   final String? childName;
 
   const RequestLeaveScreen({
@@ -20,6 +21,7 @@ class RequestLeaveScreen extends StatefulWidget {
     this.oprId,
     this.routeId,
     this.childId,
+    this.tspIds,
     this.childName,
   });
 
@@ -52,7 +54,9 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
       Logger().w('Child ID is null, cannot fetch absent days.');
       child_id = widget.child?['student_id'];
     } else {
-      Logger().i('Fetching absent days for Child ID: ${widget.childId}');
+      Logger().i(
+        'Fetching absent days for Child ID: ${widget.childId}, ${widget.oprId}, ${widget.routeId}, ${widget.childName}',
+      );
       child_id = widget.childId;
     }
     try {
@@ -391,10 +395,17 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
       if (userId != null && sessionId != null) {
         String startDate = _rangeStart!.toIso8601String().split('T').first;
         String endDate = _rangeEnd!.toIso8601String().split('T').first;
-        //convert tsp_id string to list
-        String StringTSP = widget.child?['tsp_id'] ?? '';
-        List<String> tspId = List<String>.from(jsonDecode(StringTSP));
-        Logger().d('TSP ID raw value: ${widget.child?['tsp_id']}');
+        List<String> tspId = [];
+        //check
+        if (widget.childId == null) {
+          //convert tsp_id string to list
+          String StringTSP = widget.child?['tsp_id'] ?? '[]';
+          tspId = List<String>.from(jsonDecode(StringTSP));
+        } else {
+          Logger().i("fdi ${widget.tspIds}");
+          tspId = widget.tspIds ?? [];
+        }
+        Logger().d('TSP ID raw value: $tspId');
 
         //check the length of tspId and run the loop.
         for (int i = 0; i < tspId.length; i++) {
@@ -409,7 +420,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
             startDate,
             endDate,
             singleTSP,
-            widget.child?['student_id'] ?? '',
+            child_id ?? '',
             sessionId,
             userId,
           );
@@ -431,6 +442,13 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
               _rangeEnd = null;
               _reasonController.clear();
             });
+            //save to local DB absentDays
+            await dbHelper.insertAbsentDay(
+              child_id.toString(),
+              startDate.toString(),
+              endDate.toString(),
+              singleTSP,
+            );
           } else {
             String errorData = data[1]['data'];
             ScaffoldMessenger.of(

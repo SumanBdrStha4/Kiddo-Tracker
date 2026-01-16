@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 
 class RouteCardWidget extends StatefulWidget {
   final String childId;
+  final List<String> tspId;
   final String routeId;
   final List<RouteInfo> routes;
   final Function(String routeId, List<RouteInfo> routes)? onBusTap;
@@ -28,6 +29,7 @@ class RouteCardWidget extends StatefulWidget {
   const RouteCardWidget({
     super.key,
     required this.childId,
+    required this.tspId,
     required this.routeId,
     required this.routes,
     required this.onBusTap,
@@ -518,6 +520,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                     //get oprid and route id
                     String oprId = widget.routes.first.oprId.toString();
                     String routeId = widget.routes.first.routeId;
+                    List<String> tspId = widget.tspId;
                     Logger().d(
                       'Holiday icon tapped for oprId: $oprId, routeId: $routeId',
                     );
@@ -531,6 +534,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                             'oprId': oprId,
                             'routeId': routeId,
                             'childId': widget.childId,
+                            'tspId': tspId,
                             'childName': Provider.of<ChildrenProvider>(
                               context,
                               listen: false,

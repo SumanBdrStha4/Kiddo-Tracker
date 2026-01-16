@@ -219,6 +219,7 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
                 //print the routeId and routes for debugging
                 return RouteCardWidget(
                   childId: widget.child.studentId,
+                  tspId: widget.child.tsp_id,
                   routeId: routeId,
                   routes: routes,
                   onBusTap: widget.onBusTap,

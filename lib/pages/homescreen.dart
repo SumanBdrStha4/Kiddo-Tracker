@@ -40,6 +40,9 @@ void getNotificationIsolate(dynamic message) async {
     if (userId != null && sessionId != null) {
       List results = [];
       for (var route in routes) {
+        Logger().i(
+          "kdfjgndkjgndjg $userId, $sessionId, ${route['routeId']}, ${route['oprId']}",
+        );
         final response = await ApiService.getNotification(
           userId,
           sessionId,
