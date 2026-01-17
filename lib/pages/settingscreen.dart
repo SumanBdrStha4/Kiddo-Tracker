@@ -601,9 +601,19 @@ class _SettingScreenState extends State<SettingScreen> {
       return 'N/A';
     }
     try {
-      final endDate = DateTime.parse(sub['enddate']);
-      final now = DateTime.now();
-      final difference = endDate.difference(now).inDays;
+      final DateTime endDate = DateTime.parse(sub['enddate']);
+      final DateTime now = DateTime.now();
+      // trim time (keep only date)
+      final DateTime endDateOnly = DateTime(
+        endDate.year,
+        endDate.month,
+        endDate.day,
+      );
+      final DateTime nowOnly = DateTime(now.year, now.month, now.day);
+      Logger().d("Date: $endDateOnly, $nowOnly rdkjghd");
+      //now get the difference.
+      final int difference = endDateOnly.difference(nowOnly).inDays;
+      Logger().d("$difference dgdjfkgfdsjg");
       return difference >= 0 ? '$difference days' : 'Expired';
     } catch (e) {
       return 'N/A';

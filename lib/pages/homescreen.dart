@@ -24,6 +24,7 @@ import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
+import 'package:kiddo_tracker/services/notification_service.dart';
 
 import '../services/workmanager_callback.dart';
 
@@ -118,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen>
     await PermissionService.requestNotificationPermission();
     await PermissionService.requestLocationPermission();
     await _fetchChildrenFromDb();
+    await _checkSubscriptionDaysLeft();
     await _updateActiveRoutesOnLoad();
     await _mqttCompleter.future;
     await _subscribeToTopics();
@@ -322,6 +324,46 @@ class _HomeScreenState extends State<HomeScreen>
         _isLoading = false;
       });
       Logger().e('Error fetching children from DB: $e');
+    }
+  }
+
+  Future<void> _checkSubscriptionDaysLeft() async {
+    try {
+      final subscriptions = await _sqfliteHelper.getStudentSubscriptions();
+      final children = Provider.of<ChildrenProvider>(
+        context,
+        listen: false,
+      ).children;
+      for (var child in children) {
+        final sub = subscriptions.firstWhere(
+          (sub) => sub['student_id'] == child.studentId,
+          orElse: () => {},
+        );
+        if (sub.isNotEmpty && sub['enddate'] != null) {
+          try {
+            final DateTime endDate = DateTime.parse(sub['enddate']);
+            final DateTime now = DateTime.now();
+            final DateTime endDateOnly = DateTime(
+              endDate.year,
+              endDate.month,
+              endDate.day,
+            );
+            final DateTime nowOnly = DateTime(now.year, now.month, now.day);
+            final int difference = endDateOnly.difference(nowOnly).inDays;
+            if (difference >= 0 && difference <= 5) {
+              NotificationService.showGeneralNotification(
+                title: 'Subscription Expiring Soon',
+                body:
+                    'Your subscription for ${child.name} expires in $difference days.',
+              );
+            }
+          } catch (e) {
+            Logger().e('Error calculating days left for ${child.name}: $e');
+          }
+        }
+      }
+    } catch (e) {
+      Logger().e('Error checking subscription days left: $e');
     }
   }
 
@@ -1288,7 +1330,7 @@ class _HomeScreenState extends State<HomeScreen>
         // Fetch all unread notifications and push notifications in loop
         final unreadNotifications = await _sqfliteHelper
             .getUnreadNotifications();
-        Logger().w(unreadNotifications);
+        // Logger().w(unreadNotifications);
         // Push all notifications concurrently
         final List<Future<void>> notificationFutures = [];
         for (var notice in unreadNotifications) {

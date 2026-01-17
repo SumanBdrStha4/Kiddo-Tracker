@@ -152,10 +152,10 @@ class _MainScreenState extends State<MainScreen> {
               icon: Icon(Icons.settings),
               label: 'Settings',
             ),
-            // BottomNavigationBarItem(
-            //   icon: Icon(Icons.notifications),
-            //   label: 'Alerts',
-            // ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.notifications),
+              label: 'Alerts',
+            ),
           ],
         ),
       ),

@@ -76,6 +76,11 @@ class SharedPreferenceHelper {
     await prefs.remove("earliestRouteMinute");
   }
 
+  static Future<void> clearUserSessionId() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove("userSessionId");
+  }
+
   // app active status
   static Future<void> setAppActive(bool value) async {
     final prefs = await SharedPreferences.getInstance();

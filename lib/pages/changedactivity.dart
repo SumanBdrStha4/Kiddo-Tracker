@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:intl/intl.dart';
+import 'package:logger/logger.dart';
 
 import '../widget/sqflitehelper.dart';
 
@@ -50,14 +50,31 @@ class _ChangedActivityState extends State<ChangedActivity> {
     });
   }
 
+  String timeAgo(DateTime dateTime) {
+    Logger().w("1111111111111 $dateTime");
+    final now = DateTime.now();
+    Logger().w("2222222222222222 $now");
+    final difference = now.difference(dateTime);
+    Logger().w("333333333333333333 $difference");
+    if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
   void _markAsRead(ActivityItem item) async {
     setState(() {
       item.isRead = 1;
     });
     await _sqfliteHelper.updateNotificationIsRead(item.id, 1);
     // also update the count from total notifications by read ones
-    final int totalNotifications =
-        await _sqfliteHelper.getUnreadNotificationCount();
+    final int totalNotifications = await _sqfliteHelper
+        .getUnreadNotificationCount();
     widget.onNewMessage?.call(totalNotifications);
   }
 
@@ -100,7 +117,7 @@ class _ChangedActivityState extends State<ChangedActivity> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  DateFormat('MMM dd, yyyy • hh:mm a').format(item.timestamp),
+                  timeAgo(item.timestamp),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -206,9 +223,7 @@ class _ChangedActivityState extends State<ChangedActivity> {
                                           ),
                                         ),
                                         Text(
-                                          DateFormat(
-                                            'MMM dd, hh:mm a',
-                                          ).format(item.timestamp),
+                                          timeAgo(item.timestamp),
                                           style: Theme.of(context)
                                               .textTheme
                                               .bodySmall

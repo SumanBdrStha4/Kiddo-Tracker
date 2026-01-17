@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/api/apimanage.dart';
 import 'package:kiddo_tracker/model/child.dart';
+import 'package:kiddo_tracker/model/route.dart';
+import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
@@ -164,22 +167,16 @@ class _AddChildScreenState extends State<AddChildScreen> {
         } else {
           // update existing child in database
           final studentId = widget.childData?['student_id'] ?? '';
-          final child = Child(
-            studentId: studentId,
-            name: childname,
-            nickname: nickname,
-            school: school,
-            class_name: className,
-            rollno: rollNo,
-            age: parsedAge,
-            gender: gender ?? '',
-            tagId: widget.childData?['tagId'] ?? '',
-            routeInfo: widget.childData?['routeInfo'] ?? [],
-            tsp_id: widget.childData?['tsp_id'] ?? '',
-            status: widget.childData?['status'] ?? 0,
-            onboard_status: widget.childData?['onboard_status'] ?? 0,
+          await db.updateChild(
+            studentId,
+            childname,
+            nickname,
+            school,
+            className,
+            rollNo,
+            parsedAge,
+            gender ?? '',
           );
-          await db.updateChild(child);
           Logger().i('Child updated successfully');
         }
         _showSnackBar(
@@ -193,11 +190,20 @@ class _AddChildScreenState extends State<AddChildScreen> {
         // update the list of children in the HomeScreen
         Provider.of<ChildrenProvider>(context, listen: false).updateChildren();
         //back to home screen
-        // Navigator.pushNamedAndRemoveUntil(
-        //   context,
-        //   AppRoutes.main,
-        //   (route) => false,
-        // );
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.main,
+          (route) => false,
+        );
+      } else if (data[0]['result'] == 'error') {
+        if (data[0]['data'])
+          // clear session and move to pin screen.
+          await SharedPreferenceHelper.clearUserSessionId();
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.pin,
+          (route) => false,
+        );
       } else {
         _showSnackBar(
           widget.isEdit ? 'Error updating child' : 'Error adding child',

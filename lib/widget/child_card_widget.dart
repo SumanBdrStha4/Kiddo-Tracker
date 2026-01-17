@@ -4,6 +4,7 @@ import 'package:kiddo_tracker/model/child.dart';
 import 'package:kiddo_tracker/model/subscribe.dart';
 import 'package:kiddo_tracker/widget/route_card_widget.dart';
 import 'package:kiddo_tracker/model/route.dart';
+import 'package:logger/logger.dart';
 
 class ChildCardWidget extends StatefulWidget {
   final Child child;
@@ -74,7 +75,10 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
   Widget _buildStatusWidget() {
     Icon statusIcon;
     Color statusColor;
-    if (widget.child.onboard_status == 1) {
+    if (widget.child.onboard_status == 0) {
+      statusIcon = const Icon(Icons.cancel, color: Colors.grey, size: 20);
+      statusColor = Colors.grey;
+    } else if (widget.child.onboard_status == 1) {
       statusIcon = const Icon(
         Icons.check_circle,
         color: Colors.green,
@@ -99,6 +103,31 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
         ),
       ],
     );
+  }
+
+  String _calculateDaysLeft() {
+    if (widget.subscription == null ||
+        widget.subscription!.student_id != widget.child.studentId) {
+      return 'N/A';
+    }
+    try {
+      final DateTime endDate = DateTime.parse(widget.subscription!.enddate);
+      final DateTime now = DateTime.now();
+      // trim time (keep only date)
+      final DateTime endDateOnly = DateTime(
+        endDate.year,
+        endDate.month,
+        endDate.day,
+      );
+      final DateTime nowOnly = DateTime(now.year, now.month, now.day);
+      Logger().d("Date: $endDateOnly, $nowOnly");
+      //now get the difference.
+      final int difference = endDateOnly.difference(nowOnly).inDays;
+      Logger().d("$difference days");
+      return difference >= 0 ? '$difference days' : 'Expired';
+    } catch (e) {
+      return 'N/A';
+    }
   }
 
   Widget _buildSubscriptionWidget() {
@@ -198,6 +227,19 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
                           color: Colors.grey,
                         ),
                       ),
+                      if (widget.subscription != null &&
+                          widget.subscription!.student_id ==
+                              widget.child.studentId &&
+                          !DateTime.parse(
+                            widget.subscription!.enddate,
+                          ).isBefore(DateTime.now()))
+                        Text(
+                          'Days left: ${_calculateDaysLeft()}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
                     ],
                   ),
                 ),

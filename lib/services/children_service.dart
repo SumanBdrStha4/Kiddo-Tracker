@@ -98,9 +98,9 @@ class ChildrenService {
           Logger().i(student['route_info']);
           List<RouteInfo> studentRouteInfo = [];
           //handle the [] case
-          if (student['route_info'] == '[]') {
+          if (student['route_info'] == "") {
             studentRouteInfo = [];
-          } else if (student['route_info'] != []) {
+          } else if (student['route_info'] != "") {
             String routeInfoString = student['route_info'];
             Logger().i(routeInfoString);
             // Parse route_info string to List<dynamic>
@@ -196,7 +196,6 @@ class ChildrenService {
               }
             }
           }
-
         }
       }
 

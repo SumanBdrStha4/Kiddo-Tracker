@@ -347,23 +347,23 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                                 color: Colors.grey,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Home: ${widget.routes.first.stopLocation}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            Text(
-                              'School: ${widget.routes.first.schoolLocation}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.grey,
-                              ),
-                            ),
+                            // const SizedBox(height: 4),
+                            // Text(
+                            //   'Home: ${widget.routes.first.stopLocation}',
+                            //   style: const TextStyle(
+                            //     fontSize: 12,
+                            //     fontWeight: FontWeight.w400,
+                            //     color: Colors.grey,
+                            //   ),
+                            // ),
+                            // Text(
+                            //   'School: ${widget.routes.first.schoolLocation}',
+                            //   style: const TextStyle(
+                            //     fontSize: 12,
+                            //     fontWeight: FontWeight.w400,
+                            //     color: Colors.grey,
+                            //   ),
+                            // ),
                           ],
                         ),
                       ),

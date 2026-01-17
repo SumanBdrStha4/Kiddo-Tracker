@@ -249,13 +249,30 @@ class SqfliteHelper {
   }
 
   //update the child
-  Future<int> updateChild(Child child) async {
+  Future<int> updateChild(
+    String studentId,
+    String childname,
+    String nickname,
+    String school,
+    String className,
+    String rollNo,
+    int parsedAge,
+    String gender,
+  ) async {
     final dbClient = await db;
     return await dbClient.update(
       'child',
-      child.toJson(),
+      {
+        'name': childname,
+        'nickname': nickname,
+        'school': school,
+        'class_name': className,
+        'rollno': rollNo,
+        'age': parsedAge,
+        'gender': gender,
+      },
       where: 'student_id = ?',
-      whereArgs: [child.student_id],
+      whereArgs: [studentId],
     );
   }
 
