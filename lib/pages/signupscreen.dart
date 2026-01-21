@@ -91,6 +91,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(const SnackBar(content: Text('Sign up successful')));
+            await SharedPreferenceHelper.setUserLoggedIn(true);
             //call logout api
             await ApiService.logoutUser(_contactController.text, sessionID);
             if (response.statusCode == 200) {
@@ -103,6 +104,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     content: Text(
                       'Logout Response: ${response.data['message']}',
                     ),
+                    backgroundColor: Colors.redAccent,
                   ),
                 );
               }
@@ -110,6 +112,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Failed to logout: ${response.statusMessage}'),
+                  backgroundColor: Colors.redAccent,
                 ),
               );
             }
@@ -117,6 +120,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('SignUp response: ${response.data['message']}'),
+                backgroundColor: Colors.redAccent,
               ),
             );
           }
@@ -124,11 +128,62 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to SignUp: ${response.statusMessage}'),
+              backgroundColor: Colors.redAccent,
             ),
           );
         }
       });
     }
+  }
+
+  String? _validateName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter Name';
+    }
+    final nameRegex = RegExp(r'^[a-zA-Z\s]+$');
+    if (!nameRegex.hasMatch(value)) {
+      return 'Name can only contain letters and spaces';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter Email';
+    }
+    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter Mobile Number';
+    }
+    if (value.length != 10) {
+      return 'Mobile number must be exactly 10 digits';
+    }
+    final phoneRegex = RegExp(r'^\d{10}$');
+    if (!phoneRegex.hasMatch(value)) {
+      return 'Mobile number must contain only digits';
+    }
+    return null;
+  }
+
+  String? _validateAddress(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter Address';
+    }
+    return null;
+  }
+
+  String? _validateCity(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter City';
+    }
+    return null;
   }
 
   Widget _buildTextField({
@@ -137,20 +192,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
     TextInputType? keyboardType,
     IconData? icon,
     bool enabled = true,
+    String? Function(String?)? validator,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
+        maxLength: keyboardType == TextInputType.phone ? 10 : null,
         enabled: enabled,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon != null ? Icon(icon) : null,
           border: const OutlineInputBorder(),
         ),
-        validator: (value) =>
-            value == null || value.isEmpty ? 'Please enter $label' : null,
+        validator:
+            validator ??
+            (value) =>
+                value == null || value.isEmpty ? 'Please enter $label' : null,
       ),
     );
   }
@@ -182,7 +241,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         _buildTextField(
                           label: 'Name',
                           controller: _nameController,
+                          keyboardType: TextInputType.name,
                           icon: Icons.person,
+                          validator: _validateName,
                         ),
                         _buildTextField(
                           label: 'Mobile No.',
@@ -196,12 +257,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           icon: Icons.email,
+                          validator: _validateEmail,
                         ),
                         _buildTextField(
                           label: 'Other Number',
                           controller: _mobileController,
                           keyboardType: TextInputType.phone,
                           icon: Icons.phone_android,
+                          validator: _validatePhone,
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -233,6 +296,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           label: 'Address',
                           controller: _addressController,
                           icon: Icons.home,
+                          validator: _validateAddress,
                         ),
                         Row(
                           children: [
@@ -242,6 +306,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 controller: _cityController,
                                 keyboardType: TextInputType.streetAddress,
                                 icon: Icons.location_city,
+                                validator: _validateCity,
                               ),
                             ),
                             const SizedBox(width: 16),

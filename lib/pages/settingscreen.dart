@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/api/apimanage.dart';
 import 'package:kiddo_tracker/pages/addchildscreen.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
+import 'package:kiddo_tracker/services/background_service.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
+import 'package:kiddo_tracker/services/theme_provider.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
@@ -68,8 +70,6 @@ class _SettingScreenState extends State<SettingScreen> {
     }
   }
 
-  bool darkMode = false;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,12 +88,14 @@ class _SettingScreenState extends State<SettingScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
               ),
             ),
             Divider(
               thickness: 2,
-              color: Theme.of(context).primaryColor.withOpacity(0.5),
+              color: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.color?.withOpacity(0.5),
             ),
             SizedBox(height: 10),
             Row(
@@ -102,7 +104,7 @@ class _SettingScreenState extends State<SettingScreen> {
                 SizedBox(width: 5),
                 Icon(
                   Icons.person_4_outlined,
-                  color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                   size: 35,
                 ),
                 SizedBox(width: 10),
@@ -111,7 +113,7 @@ class _SettingScreenState extends State<SettingScreen> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 25,
-                    color: Theme.of(context).primaryColor,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
                 // data sync icon
@@ -119,7 +121,7 @@ class _SettingScreenState extends State<SettingScreen> {
                 IconButton(
                   icon: Icon(
                     Icons.sync,
-                    color: Theme.of(context).primaryColor,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                     size: 35,
                   ),
                   onPressed: () => dataSync(),
@@ -135,10 +137,16 @@ class _SettingScreenState extends State<SettingScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.2),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.phone, size: 30, color: Colors.white),
+                  child: Icon(
+                    Icons.phone,
+                    size: 30,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
                 ),
                 title: Text('Mobile'),
                 subtitle: Text(mobileNumber),
@@ -154,13 +162,15 @@ class _SettingScreenState extends State<SettingScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.2),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.location_on,
                     size: 30,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                   ),
                 ),
                 title: Text('Address'),
@@ -174,12 +184,14 @@ class _SettingScreenState extends State<SettingScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
               ),
             ),
             Divider(
               thickness: 2,
-              color: Theme.of(context).primaryColor.withOpacity(0.5),
+              color: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.color?.withOpacity(0.5),
             ),
             // SizedBox(height: 10),
             // Text(
@@ -202,7 +214,9 @@ class _SettingScreenState extends State<SettingScreen> {
                 ),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).primaryColorLight,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer,
                     child: Text(
                       child['name'][0].toUpperCase(),
                       style: TextStyle(
@@ -213,7 +227,11 @@ class _SettingScreenState extends State<SettingScreen> {
                   ),
                   title: Text(
                     child['name'],
-                    style: TextStyle(fontWeight: FontWeight.w300, fontSize: 16),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w300,
+                      fontSize: 16,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,6 +241,9 @@ class _SettingScreenState extends State<SettingScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.8),
                         ),
                       ),
                       Text(
@@ -230,6 +251,9 @@ class _SettingScreenState extends State<SettingScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.8),
                         ),
                       ),
                       Text(
@@ -237,6 +261,9 @@ class _SettingScreenState extends State<SettingScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.8),
                         ),
                       ),
                       Text(
@@ -244,6 +271,9 @@ class _SettingScreenState extends State<SettingScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.8),
                         ),
                       ),
                       Text(
@@ -251,6 +281,9 @@ class _SettingScreenState extends State<SettingScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.8),
                         ),
                       ),
                     ],
@@ -288,35 +321,41 @@ class _SettingScreenState extends State<SettingScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
               ),
             ),
             Divider(
               thickness: 2,
-              color: Theme.of(context).primaryColor.withOpacity(0.5),
+              color: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.color?.withOpacity(0.5),
             ),
             SizedBox(height: 10),
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: SwitchListTile(
-                title: Text('Dark Mode'),
-                value: darkMode,
-                onChanged: (val) {
-                  setState(() {
-                    darkMode = val;
-                  });
-                },
-                secondary: AnimatedSwitcher(
-                  duration: Duration(milliseconds: 300),
-                  child: Icon(
-                    darkMode ? Icons.dark_mode : Icons.light_mode,
-                    key: ValueKey<bool>(darkMode),
+            Consumer<ThemeProvider>(
+              builder: (context, themeProvider, child) {
+                return Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-              ),
+                  child: SwitchListTile(
+                    title: Text('Dark Mode'),
+                    value: themeProvider.isDarkMode,
+                    onChanged: (val) {
+                      themeProvider.toggleTheme();
+                    },
+                    secondary: AnimatedSwitcher(
+                      duration: Duration(milliseconds: 300),
+                      child: Icon(
+                        themeProvider.isDarkMode
+                            ? Icons.dark_mode
+                            : Icons.light_mode,
+                        key: ValueKey<bool>(themeProvider.isDarkMode),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             SizedBox(height: 30),
             // Account Section
@@ -325,12 +364,14 @@ class _SettingScreenState extends State<SettingScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
               ),
             ),
             Divider(
               thickness: 2,
-              color: Theme.of(context).primaryColor.withOpacity(0.5),
+              color: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.color?.withOpacity(0.5),
             ),
             SizedBox(height: 10),
             Card(
@@ -342,15 +383,21 @@ class _SettingScreenState extends State<SettingScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.2),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.lock, size: 30, color: Colors.white),
+                  child: Icon(
+                    Icons.lock,
+                    size: 30,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
                 ),
                 title: Text('Change PIN'),
                 trailing: Icon(
                   Icons.arrow_forward_ios,
-                  color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
                 onTap: () => _changePin(),
               ),
@@ -368,10 +415,10 @@ class _SettingScreenState extends State<SettingScreen> {
                     color: Colors.red.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.logout,
                     size: 30,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onError,
                   ),
                 ),
                 title: Text('Logout'),
@@ -467,20 +514,16 @@ class _SettingScreenState extends State<SettingScreen> {
           provider.updateChildren();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Child deleted successfully',
-                style: TextStyle(color: Colors.green),
-              ),
+              content: Text('Child deleted successfully'),
+              backgroundColor: Colors.green,
             ),
           );
           // provider.removeChildOrRouteOprid('child', studentId);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Failed to delete child locally.',
-                style: TextStyle(color: Colors.red),
-              ),
+              content: Text('Failed to delete child locally.'),
+              backgroundColor: Colors.redAccent,
             ),
           );
         }
@@ -546,8 +589,8 @@ class _SettingScreenState extends State<SettingScreen> {
             TextButton(
               child: Text('Logout', style: TextStyle(color: Colors.red)),
               onPressed: () async {
-                // call api to logout
-                logout();
+                Navigator.of(context).pop(); // close the dialog
+                await logout();
               },
             ),
           ],
@@ -556,29 +599,33 @@ class _SettingScreenState extends State<SettingScreen> {
     );
   }
 
-  void logout() async {
+  Future<void> logout() async {
     String? mobileNumber = await SharedPreferenceHelper.getUserNumber() ?? '';
     String? session = await SharedPreferenceHelper.getUserSessionId() ?? '';
 
-    Response response =
-        ApiManager().post(
-              'ktrackuserlogout',
-              data: {'userid': mobileNumber, 'sessionid': session},
-            )
-            as Response;
+    Response response = await ApiManager().post(
+      'ktrackuserlogout',
+      data: {'userid': mobileNumber, 'sessionid': session},
+    );
     if (response.statusCode == 200 && response.data[0]['result'] == 'ok') {
-      Navigator.of(context).pop();
       // Clear shared preferences
-      await SharedPreferenceHelper.clearAllExceptNumberAndLogin();
-      await SharedPreferenceHelper.setUserLoggedIn(false);
+      // await SharedPreferenceHelper.clearAllExceptNumberAndLogin();
       // Clear database
-      sqfliteHelper.clearAllData();
-      // Navigate to login
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        AppRoutes.login,
-        (route) => false,
+      // sqfliteHelper.clearAllData();
+      // Stop background service
+      await BackgroundService.stop();
+      // Show success SnackBar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Logged out successfully'),
+          backgroundColor: Colors.green,
+        ),
       );
+      // close the open AlertDialog
+      // Redirect to pinscreen
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AppRoutes.pin, (route) => false);
     } else {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -613,7 +660,6 @@ class _SettingScreenState extends State<SettingScreen> {
       Logger().d("Date: $endDateOnly, $nowOnly rdkjghd");
       //now get the difference.
       final int difference = endDateOnly.difference(nowOnly).inDays;
-      Logger().d("$difference dgdjfkgfdsjg");
       return difference >= 0 ? '$difference days' : 'Expired';
     } catch (e) {
       return 'N/A';

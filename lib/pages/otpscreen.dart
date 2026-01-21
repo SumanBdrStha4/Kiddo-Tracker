@@ -21,6 +21,7 @@ class _OTPScreenState extends State<OTPScreen> {
     6,
     (_) => TextEditingController(),
   );
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   final Logger logger = Logger();
 
   bool _isLoading = false;
@@ -31,6 +32,17 @@ class _OTPScreenState extends State<OTPScreen> {
   @override
   void initState() {
     super.initState();
+    for (int i = 0; i < _focusNodes.length; i++) {
+      _focusNodes[i].addListener(() {
+        if (_focusNodes[i].hasFocus && _controllers[i].text.isNotEmpty) {
+          _controllers[i].selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _controllers[i].text.length,
+          );
+        }
+      });
+    }
+
     if (widget.mobile == "8456029772") {
       SharedPreferenceHelper.setUserNumber(widget.mobile ?? '');
       _fetchChildren();
@@ -43,6 +55,9 @@ class _OTPScreenState extends State<OTPScreen> {
   void dispose() {
     for (final c in _controllers) {
       c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
     }
     _timer?.cancel();
     super.dispose();
@@ -79,7 +94,10 @@ class _OTPScreenState extends State<OTPScreen> {
         logger.i(response.toString());
         if (response.data[0]['result'] == 'ok') {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('OTP sent successfully')),
+            const SnackBar(
+              content: Text('OTP sent successfully'),
+              backgroundColor: Colors.green,
+            ),
           );
           _startTimer();
         } else {
@@ -93,6 +111,7 @@ class _OTPScreenState extends State<OTPScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to resend OTP. Please try again.'),
+          backgroundColor: Colors.red,
         ),
       );
     } finally {
@@ -123,24 +142,39 @@ class _OTPScreenState extends State<OTPScreen> {
       final response = await ApiService.verifyOTP(mobileNumber, otp);
 
       if (response.statusCode == 200) {
+        print('opt $response.toString()');
         logger.i(response.toString());
         if (response.data[0]['result'] == 'ok') {
+          print('opt 111111 ${response.data[0]['result']}');
           // Save mobile number in shared preferences
           SharedPreferenceHelper.setUserNumber(widget.mobile ?? '');
           // call another method
           _fetchChildren();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('OTP verified successfully')),
+            const SnackBar(
+              content: Text('OTP verified successfully'),
+              backgroundColor: Colors.green,
+            ),
           );
         } else if (response.data[0]['result'] == 'error') {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(response.data[0]['data'])));
+          //clear the _controllers.
+          for (final controller in _controllers) {
+            controller.clear();
+          }
+          // Set focus to the first field
+          _focusNodes[0].requestFocus();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.data[0]['data']),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to verify OTP: ${response.statusMessage}'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -151,7 +185,10 @@ class _OTPScreenState extends State<OTPScreen> {
         stackTrace: stacktrace,
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An error occurred. Please try again.')),
+        const SnackBar(
+          content: Text('An error occurred. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) {
@@ -201,6 +238,7 @@ class _OTPScreenState extends State<OTPScreen> {
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       child: TextField(
                         controller: _controllers[index],
+                        focusNode: _focusNodes[index],
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
                         maxLength: 1,
@@ -300,6 +338,7 @@ class _OTPScreenState extends State<OTPScreen> {
 
   Future<void> _fetchChildren() async {
     try {
+      print('fetch Child');
       final result = await ChildrenService().fetchChildren();
       if (result['success'] == true) {
         if (mounted) {

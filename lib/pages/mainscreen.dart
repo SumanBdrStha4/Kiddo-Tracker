@@ -15,48 +15,29 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   int _notificationCount = 0;
-  final PageController _pageController = PageController();
+  late PageController _pageController;
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    _pageController.jumpToPage(index);
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
   }
 
-  Future<bool> _onWillPop() async {
-    if (_selectedIndex != 0) {
-      setState(() {
-        _selectedIndex = 0;
-      });
-      _pageController.jumpToPage(0);
-      return false;
-    } else {
-      return await showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Exit App'),
-              content: const Text('Do you want to exit the app?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('No'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Yes'),
-                ),
-              ],
-            ),
-          ) ??
-          false;
-    }
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _pageController.jumpToPage(0);
+        }
+      },
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -85,7 +66,7 @@ class _MainScreenState extends State<MainScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       constraints: const BoxConstraints(
@@ -94,8 +75,8 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                       child: Text(
                         _notificationCount.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
                           fontSize: 10,
                         ),
                         textAlign: TextAlign.center,
@@ -110,9 +91,11 @@ class _MainScreenState extends State<MainScreen> {
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
+            if (index < 4) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            }
           },
           children: [
             HomeScreen(
@@ -124,7 +107,7 @@ class _MainScreenState extends State<MainScreen> {
             ),
             const AddChildScreen(),
             const ActivityScreen(),
-            SettingScreen(),
+            const SettingScreen(),
             ChangedActivity(
               onNewMessage: (count) {
                 setState(() {
@@ -135,8 +118,10 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
+          currentIndex: _selectedIndex.clamp(0, 3),
+          onTap: (index) {
+            _pageController.jumpToPage(index);
+          },
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
@@ -152,10 +137,10 @@ class _MainScreenState extends State<MainScreen> {
               icon: Icon(Icons.settings),
               label: 'Settings',
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.notifications),
-              label: 'Alerts',
-            ),
+            // BottomNavigationBarItem(
+            //   icon: Icon(Icons.notifications),
+            //   label: 'Alerts',
+            // ),
           ],
         ),
       ),

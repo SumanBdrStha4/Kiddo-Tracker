@@ -155,7 +155,7 @@ class NotificationService {
     required String body,
   }) async {
     //generate new id each time it called.
-    int _id = _nextId++;
-    await showNotification(id: _id, title: title, body: body);
+    int id = _nextId++;
+    await showNotification(id: id, title: title, body: body);
   }
 }

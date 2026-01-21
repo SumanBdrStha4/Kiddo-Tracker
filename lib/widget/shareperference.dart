@@ -70,8 +70,6 @@ class SharedPreferenceHelper {
 
   static Future<void> clearAllExceptNumberAndLogin() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove("userNumber");
-    await prefs.remove("userSessionId");
     await prefs.remove("earliestRouteHour");
     await prefs.remove("earliestRouteMinute");
   }
@@ -90,5 +88,16 @@ class SharedPreferenceHelper {
   static Future<bool> getAppActive() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool("appActive") ?? false;
+  }
+
+  // dark mode
+  static Future<void> setDarkMode(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool("darkMode", value);
+  }
+
+  static Future<bool?> getDarkMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool("darkMode");
   }
 }

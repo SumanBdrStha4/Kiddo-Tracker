@@ -21,6 +21,7 @@ class ChildrenService {
 
   Future<Map<String, dynamic>> fetchChildren() async {
     Logger().i('Fetching children...');
+    print('Fetching children...');
     try {
       // Clear previous data in DB
       _sqfliteHelper.clearAllData();
@@ -35,6 +36,7 @@ class ChildrenService {
       if (data is List && data.isNotEmpty && data[0]['result'] == 'error') {
         return {'success': false, 'error': data[1]['data']};
       } else {
+        print('fetch else part');
         return await processChildrenData(data);
       }
     } catch (e) {
@@ -46,7 +48,7 @@ class ChildrenService {
   Future<Map<String, dynamic>> processChildrenData(dynamic data) async {
     // Clear previous data in DB
     _sqfliteHelper.clearAllData();
-
+    print('dragon enter.');
     if (data is List && data.isNotEmpty && data[0]['result'] == 'ok') {
       final List userInfo = List.from(
         data[1]['userdata'] as List<dynamic>? ?? [],
@@ -58,7 +60,7 @@ class ChildrenService {
       } else {
         studentInfo = List.from(data[2]['studentdata'] as List<dynamic>? ?? []);
       }
-
+      print('dragon enter....');
       Parent parent = Parent(
         userid: userInfo[0]['userid'].toString(),
         name: userInfo[0]['name'].toString(),
@@ -73,6 +75,7 @@ class ChildrenService {
         pin: int.tryParse(userInfo[0]['pin'].toString()) ?? 0,
       );
       Logger().i(parent.toJson().toString());
+      print('dragon enter.${parent.toJson().toString()}');
       // Store userInfo to sqflite
       await _sqfliteHelper.insertUser(parent);
       // Store session data
@@ -83,12 +86,15 @@ class ChildrenService {
       Logger().i(
         ' Mobile Number: ${userInfo[0]['userid']}, Session ID: ${userInfo[0]['sessionid']}',
       );
+      print(
+        'dragon enter.${userInfo[0]['userid']}, Session ID: ${userInfo[0]['sessionid']}',
+      );
       // Fetch subscription data
       await _fetchAndSetSubscriptionPlans(
         userInfo[0]['userid'],
         userInfo[0]['sessionid'],
       );
-
+      print('dragon enter.scdsfkjfisdjfnhisd');
       // Clear global children list before adding new children
       children.clear();
       List<RouteInfo> allParsedRouteInfo = [];
@@ -103,10 +109,12 @@ class ChildrenService {
           } else if (student['route_info'] != "") {
             String routeInfoString = student['route_info'];
             Logger().i(routeInfoString);
+            print('dragon enter.$routeInfoString');
             // Parse route_info string to List<dynamic>
             List<dynamic> routeInfo = jsonDecode(routeInfoString);
             // List<dynamic> routeInfo = parseRouteInfo(routeInfoString);
             Logger().i(routeInfo);
+            print('dragon enter.$routeInfo');
             // Convert each dynamic map to RouteInfo object
             studentRouteInfo = routeInfo.map((route) {
               route['school_location'] = "";
@@ -114,6 +122,7 @@ class ChildrenService {
               return RouteInfo.fromJson(route);
             }).toList();
             //cnvert the studentRouteInfo to string
+            print('dragon enter. kdfsjgidjsgbiseoh');
           }
           //set in Child
           Child child = Child(
@@ -133,14 +142,18 @@ class ChildrenService {
             status: student['status'],
             onboard_status: student['onboard_status'],
           );
+          print('dragon enter. sdfdjsgweuii5454');
           Logger().i(child.toJson().toString());
           // Store children data
           children.add(child);
+          print('dragon enter. 52145645618');
           // Store child data to sqflite
           await _sqfliteHelper.insertChild(child);
           // Store routeInfo data
           allParsedRouteInfo.addAll(studentRouteInfo);
+          print('dragon enter. 5498498798');
           Logger().i("${child.toJson()} $studentRouteInfo");
+          print('dragon enter. sdfdjsgweuii5454');
         }
       }
 
@@ -249,7 +262,20 @@ class ChildrenService {
             price: int.tryParse(subscription['price'].toString()) ?? 0,
             startdate: subscription['startdate'].toString(),
             enddate: subscription['enddate'].toString(),
-            status: int.tryParse(subscription['status'].toString()) ?? 0,
+            status: (() {
+              DateTime endDate = DateTime.parse(
+                subscription['enddate'].toString(),
+              );
+              DateTime now = DateTime.now();
+              DateTime endDateOnly = DateTime(
+                endDate.year,
+                endDate.month,
+                endDate.day,
+              );
+              DateTime nowOnly = DateTime(now.year, now.month, now.day);
+              int difference = endDateOnly.difference(nowOnly).inDays;
+              return difference >= 0 ? 1 : 0;
+            })(),
             userid: subscription['userid'].toString(),
           );
           // Store subscription data

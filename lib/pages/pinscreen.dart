@@ -19,15 +19,34 @@ class _PINScreenState extends State<PINScreen> {
     4,
     (_) => TextEditingController(),
   );
+  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
   final Logger logger = Logger();
   final SqfliteHelper _sqfliteHelper = SqfliteHelper();
 
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    for (int i = 0; i < _focusNodes.length; i++) {
+      _focusNodes[i].addListener(() {
+        if (_focusNodes[i].hasFocus && _controllers[i].text.isNotEmpty) {
+          _controllers[i].selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _controllers[i].text.length,
+          );
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
     for (final c in _controllers) {
       c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
     }
     super.dispose();
   }
@@ -37,7 +56,10 @@ class _PINScreenState extends State<PINScreen> {
 
     if (pin.length != 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 4-digit PIN')),
+        const SnackBar(
+          content: Text('Please enter a valid 4-digit PIN'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -112,9 +134,15 @@ class _PINScreenState extends State<PINScreen> {
         // }
       } else {
         String data = response.data[1]['data'];
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(data)));
+        //clear the _controllers.
+        for (final controller in _controllers) {
+          controller.clear();
+        }
+        // Set focus to the first field
+        _focusNodes[0].requestFocus();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data), backgroundColor: Colors.red),
+        );
       }
     } catch (e, stacktrace) {
       logger.e(
@@ -173,6 +201,7 @@ class _PINScreenState extends State<PINScreen> {
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       child: TextField(
                         controller: _controllers[index],
+                        focusNode: _focusNodes[index],
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
                         maxLength: 1,

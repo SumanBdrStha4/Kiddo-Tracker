@@ -22,10 +22,7 @@
     <application
         android:label="kiddo_tracker"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:allowBackup="false"
-        android:fullBackupContent="false"
-        android:enableOnBackInvokedCallback="true">
+        android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
             android:exported="true"

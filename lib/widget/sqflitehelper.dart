@@ -335,10 +335,10 @@ class SqfliteHelper {
   }
 
   //update child status
-  Future<int> updateChildStatus(String studentId, int status) async {
+  Future<int> updateSubscribeStatus(String studentId, int status) async {
     final dbClient = await db;
     return await dbClient.update(
-      'child',
+      'studentSubscriptions',
       {'status': status},
       where: 'student_id = ?',
       whereArgs: [studentId],
@@ -454,6 +454,49 @@ class SqfliteHelper {
     } catch (e) {
       Logger().e('Error updating route info: $e');
     }
+  }
+
+  //update tsp_id for child
+  Future<int> updateChildTspId(String studentId, String tspId) async {
+    final dbClient = await db;
+    // First, get the current child data
+    final results = await dbClient.query(
+      'child',
+      where: 'student_id = ?',
+      whereArgs: [studentId],
+    );
+    if (results.isEmpty) {
+      Logger().w('No child found with student_id: $studentId');
+      return 0;
+    }
+    final childData = results.first;
+    Logger().d("sdlkfdkj $childData");
+    final tspIdRaw = childData['tsp_id'] as String?;
+    Logger().d("sdlkfdkj $tspIdRaw");
+    List<String> tspList = [];
+    if (tspIdRaw != null && tspIdRaw.isNotEmpty) {
+      try {
+        tspList = List<String>.from(jsonDecode(tspIdRaw));
+      } catch (e) {
+        Logger().e('Error decoding tsp_id: $e');
+      }
+    }
+    Logger().d("sdlkfdkj $tspList");
+    // Add tspId if not already present
+    if (!tspList.contains(tspId)) {
+      tspList.add(tspId);
+    }
+    Logger().d("sdlkfdkj $tspList");
+    // Encode back to JSON
+    final updatedTspId = jsonEncode(tspList);
+    Logger().d("sdlkfdkj $updatedTspId");
+    // Update the database
+    return await dbClient.update(
+      'child',
+      {'tsp_id': updatedTspId},
+      where: 'student_id = ?',
+      whereArgs: [studentId],
+    );
   }
 
   //update only stopage in route_info of child base on student_id and opr_id

@@ -9,7 +9,8 @@ import 'package:logger/logger.dart';
 class ChildCardWidget extends StatefulWidget {
   final Child child;
   final SubscriptionPlan? subscription;
-  final VoidCallback? onSubscribeTap;
+  final Function(Child, String)? onSubscribeTap;
+  final String? type;
   final VoidCallback? onAddRouteTap;
   final Function(String routeId, List<RouteInfo> routes)? onBusTap;
   final Function(String routeId, List<RouteInfo> routes)? onLocationTap;
@@ -24,6 +25,7 @@ class ChildCardWidget extends StatefulWidget {
     required this.child,
     this.subscription,
     this.onSubscribeTap,
+    this.type,
     this.onAddRouteTap,
     required this.onBusTap,
     required this.onLocationTap,
@@ -105,10 +107,10 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
     );
   }
 
-  String _calculateDaysLeft() {
+  int _calculateDaysLeft() {
     if (widget.subscription == null ||
         widget.subscription!.student_id != widget.child.studentId) {
-      return 'N/A';
+      return -1;
     }
     try {
       final DateTime endDate = DateTime.parse(widget.subscription!.enddate);
@@ -124,16 +126,18 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
       //now get the difference.
       final int difference = endDateOnly.difference(nowOnly).inDays;
       Logger().d("$difference days");
-      return difference >= 0 ? '$difference days' : 'Expired';
+      return difference;
     } catch (e) {
-      return 'N/A';
+      return -1;
     }
   }
 
   Widget _buildSubscriptionWidget() {
-    if (widget.subscription == null) {
+    late String already = '';
+    if (widget.subscription == null ||
+        widget.subscription!.student_id != widget.child.studentId) {
       return GestureDetector(
-        onTap: widget.onSubscribeTap,
+        onTap: () => widget.onSubscribeTap?.call(widget.child, already),
         child: const Text(
           "Subscribe",
           style: TextStyle(
@@ -143,38 +147,23 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
           ),
         ),
       );
+    } else if (widget.subscription != null &&
+        widget.subscription!.status == 0) {
+      already = "already";
+      return GestureDetector(
+        onTap: () => widget.onSubscribeTap?.call(widget.child, already),
+        child: const Text(
+          "Re Subscribe",
+          style: TextStyle(
+            color: Colors.blue,
+            fontSize: 14,
+            decoration: TextDecoration.underline,
+          ),
+        ),
+      );
     } else {
-      bool isExpired = DateTime.parse(
-        widget.subscription!.enddate,
-      ).isBefore(DateTime.now());
-      if (widget.subscription!.student_id != widget.child.studentId) {
-        return GestureDetector(
-          onTap: widget.onSubscribeTap,
-          child: const Text(
-            "Subscribe",
-            style: TextStyle(
-              color: Colors.blue,
-              fontSize: 14,
-              decoration: TextDecoration.underline,
-            ),
-          ),
-        );
-      } else if (isExpired) {
-        return GestureDetector(
-          onTap: widget.onSubscribeTap,
-          child: const Text(
-            "Add New Plan",
-            style: TextStyle(
-              color: Colors.blue,
-              fontSize: 14,
-              decoration: TextDecoration.underline,
-            ),
-          ),
-        );
-      } else {
-        // For active subscription, just show a green check icon without text
-        return const Icon(Icons.check_circle, color: Colors.green, size: 20);
-      }
+      // For active subscription, just show a green check icon without text
+      return const Icon(Icons.check_circle, color: Colors.green, size: 20);
     }
   }
 
@@ -213,43 +202,44 @@ class _ChildCardWidgetState extends State<ChildCardWidget> {
                     children: [
                       Text(
                         widget.child.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
-                          color: Colors.black87,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         widget.child.school,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                         ),
                       ),
-                      if (widget.subscription != null &&
-                          widget.subscription!.student_id ==
-                              widget.child.studentId &&
-                          !DateTime.parse(
-                            widget.subscription!.enddate,
-                          ).isBefore(DateTime.now()))
-                        Text(
-                          'Days left: ${_calculateDaysLeft()}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
+                      // if (widget.subscription != null &&
+                      //     widget.subscription!.student_id ==
+                      //         widget.child.studentId &&
+                      //     !DateTime.parse(
+                      //       widget.subscription!.enddate,
+                      //     ).isBefore(DateTime.now()))
+                      Text(
+                        'Days left: ${_calculateDaysLeft() >= 0 ? '${_calculateDaysLeft()} days' : 'Expired'}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.color?.withOpacity(0.6),
                         ),
+                      ),
                     ],
                   ),
                 ),
-                if (widget.child.status == 1 ||
-                    widget.subscription != null &&
-                        widget.subscription!.student_id ==
-                            widget.child.studentId)
-                  _buildStatusWidget()
+                if (_calculateDaysLeft() < 0)
+                  _buildSubscriptionWidget()
                 else
-                  _buildSubscriptionWidget(),
+                  _buildStatusWidget(),
               ],
             ),
             const SizedBox(height: 12),

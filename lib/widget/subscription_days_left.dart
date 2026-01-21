@@ -4,9 +4,9 @@ class SubscriptionDaysLeft extends StatelessWidget {
   final DateTime subscriptionEndDate;
 
   const SubscriptionDaysLeft({
-    Key? key,
+    super.key,
     required this.subscriptionEndDate,
-  }) : super(key: key);
+  });
 
   int _checkSubscriptionDaysLeft() {
     final now = DateTime.now();

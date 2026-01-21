@@ -146,6 +146,16 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                         stopId: _stopageId ?? 0,
                       ),
                     );
+                    //update the child's tsp_id in SqfliteHelper
+                    await SqfliteHelper().updateChildTspId(
+                      widget.stdId!,
+                      _selectedInstitute!,
+                    );
+                    final provider = Provider.of<ChildrenProvider>(
+                      context,
+                      listen: false,
+                    );
+                    await provider.updateChildren();
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -211,6 +221,16 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                         stopId: _onwardStopageId ?? 0,
                       ),
                     );
+                    //update the child's tsp_id in SqfliteHelper
+                    await SqfliteHelper().updateChildTspId(
+                      widget.stdId!,
+                      _selectedInstitute!,
+                    );
+                    final provider = Provider.of<ChildrenProvider>(
+                      context,
+                      listen: false,
+                    );
+                    await provider.updateChildren();
                     // Now save return route
                     ApiManager()
                         .post(
@@ -373,6 +393,8 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
           backgroundColor: Colors.green,
         ),
       );
+      // back to home screen.
+      Navigator.of(context).pop();
     } else {
       // Handle the case when widget.stdId is null
       ScaffoldMessenger.of(context).showSnackBar(
@@ -615,6 +637,14 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                 }
               }
             }
+            // Update _selectedStopAriveTime if a stopage is already selected
+            if (_selectedStopage != null) {
+              var selectedStopage = _stopages.firstWhere(
+                (s) => s['value'] == _selectedStopage,
+                orElse: () => {},
+              );
+              _selectedStopAriveTime = selectedStopage['time'];
+            }
           } else if (type == 'onward') {
             _onwardTime = value;
             _onwardorpId = callback.getOprIdbyTiming(value!, _onwardRouteId!);
@@ -648,6 +678,14 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                 }
               }
             }
+            // Update _onwardStopAriveTime if a stopage is already selected
+            if (_onwardStopage != null) {
+              var selectedStopage = _onwardStopages.firstWhere(
+                (s) => s['value'] == _onwardStopage,
+                orElse: () => {},
+              );
+              _onwardStopAriveTime = selectedStopage['time'];
+            }
           } else {
             _returnTime = value;
             _returnorpId = callback.getOprIdbyTiming(value!, _returnRouteId!);
@@ -680,6 +718,14 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                   }
                 }
               }
+            }
+            // Update _returnStopAriveTime if a stopage is already selected
+            if (_returnStopage != null) {
+              var selectedStopage = _returnStopages.firstWhere(
+                (s) => s['value'] == _returnStopage,
+                orElse: () => {},
+              );
+              _returnStopAriveTime = selectedStopage['time'];
             }
           }
         });
@@ -913,6 +959,15 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
       child: ElevatedButton(
         onPressed: () {
           if (_selectedTripType == 1) {
+            if (_selectedTime == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Please select a time'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
             if (_selectedStopage == null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -923,6 +978,17 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
               return;
             }
           } else {
+            if (_onwardTime == null || _returnTime == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Please select times for both onward and return',
+                  ),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
             if (_onwardStopage == null || _returnStopage == null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -1400,7 +1466,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('${response.data[0]['message']}'),
+                  content: Text(response.data[1]['data']),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -1429,7 +1495,7 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                     IconButton(
@@ -1453,7 +1519,9 @@ class _AddChildRoutePageState extends State<AddChildRoutePage> {
                         child: ListTile(
                           leading: Icon(
                             Icons.school,
-                            color: Theme.of(context).primaryColor,
+                            color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color,
                           ),
                           title: Text(
                             //name and board

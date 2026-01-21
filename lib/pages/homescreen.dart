@@ -24,7 +24,6 @@ import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
-import 'package:kiddo_tracker/services/notification_service.dart';
 
 import '../services/workmanager_callback.dart';
 
@@ -247,8 +246,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                 subscription:
                                                     studentSubscriptions[child
                                                         .studentId],
-                                                onSubscribeTap: () =>
-                                                    _onSubscribe(updatedChild),
+                                                onSubscribeTap: _onSubscribe,
                                                 onBusTap: (routeId, routes) =>
                                                     _onBusTap(routeId, routes),
                                                 onLocationTap:
@@ -334,6 +332,7 @@ class _HomeScreenState extends State<HomeScreen>
         context,
         listen: false,
       ).children;
+      bool hasExpired = false;
       for (var child in children) {
         final sub = subscriptions.firstWhere(
           (sub) => sub['student_id'] == child.studentId,
@@ -356,11 +355,26 @@ class _HomeScreenState extends State<HomeScreen>
                 body:
                     'Your subscription for ${child.name} expires in $difference days.',
               );
+            } else if (difference < 0) {
+              // Subscription expired
+              Logger().i(
+                'Subscription expired for ${child.name}, updating status and removing subscription',
+              );
+              // Update child status to inactive (assuming 0 is inactive)
+              await _sqfliteHelper.updateSubscribeStatus(child.studentId, 0);
+              hasExpired = true;
             }
           } catch (e) {
             Logger().e('Error calculating days left for ${child.name}: $e');
           }
         }
+      }
+      if (hasExpired) {
+        // Refresh children and subscriptions after updates
+        await Provider.of<ChildrenProvider>(
+          context,
+          listen: false,
+        ).updateChildren();
       }
     } catch (e) {
       Logger().e('Error checking subscription days left: $e');
@@ -549,14 +563,14 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // Action methods
-  Future<void> _onSubscribe(Child child) async {
+  Future<void> _onSubscribe(Child child, String already) async {
     // Implement subscribe action
     Logger().i('Subscribe clicked for ${child.name}, ${child.studentId}');
     // Add your subscription logic here
     final result = await Navigator.pushNamed(
       context,
       AppRoutes.subscribe,
-      arguments: child.studentId,
+      arguments: {'already': already, 'childId': child.studentId},
     );
     if (result == true) {
       await Provider.of<ChildrenProvider>(

@@ -9,7 +9,8 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   final String? childid;
-  const SubscriptionScreen({super.key, this.childid});
+  final String? already;
+  const SubscriptionScreen({super.key, this.childid, this.already});
   @override
   _SubscriptionScreenState createState() => _SubscriptionScreenState();
 }
@@ -140,7 +141,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.card_membership, color: Colors.blueGrey, size: 28),
+                            Icon(
+                              Icons.card_membership,
+                              color: Colors.blueGrey,
+                              size: 28,
+                            ),
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -156,7 +161,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         ),
                         SizedBox(height: 12),
                         Text(
-                          'Price: \$${pkg.price.toStringAsFixed(2)}',
+                          'Price: \₹${pkg.price.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -177,19 +182,28 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: pkg.plan_details
                               .split(',')
-                              .map((feature) => Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(Icons.check_circle, size: 16, color: Colors.blueGrey.shade400),
-                                      SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          feature.trim(),
-                                          style: TextStyle(fontSize: 14, color: Colors.blueGrey.shade600),
+                              .map(
+                                (feature) => Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle,
+                                      size: 16,
+                                      color: Colors.blueGrey.shade400,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        feature.trim(),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.blueGrey.shade600,
                                         ),
                                       ),
-                                    ],
-                                  ))
+                                    ),
+                                  ],
+                                ),
+                              )
                               .toList(),
                         ),
                         SizedBox(height: 16),
@@ -206,7 +220,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           child: Center(
                             child: Text(
                               'Select & Pay',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -246,9 +263,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     // send the payment details to the server
     final userNumber = await SharedPreferenceHelper.getUserNumber();
     final sessionId = await SharedPreferenceHelper.getUserSessionId();
-    Logger().i('check $userNumber $sessionId ${widget.childid?.toString()}');
+    final previous = widget.already;
+    Logger().i(
+      'check $userNumber $sessionId ${widget.childid?.toString()}, previous: $previous',
+    );
     final response2 = await ApiManager().post(
-      'ktusersubplanadd',
+      previous == "already" ? "ktusersubplanrenew" : 'ktusersubplanadd',
       data: {
         'userid': userNumber,
         'sessionid': sessionId,
@@ -284,7 +304,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
           );
           //update child table status
-          await SqfliteHelper().updateChildStatus(widget.childid ?? '', 1);
+          // await SqfliteHelper().updateChildStatus(widget.childid ?? '', 1);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(

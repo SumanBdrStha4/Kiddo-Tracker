@@ -63,8 +63,19 @@ class ApiService {
     );
   }
 
-  static Future<Response> forgotPassword(String mobile) async {
+  static Future<Response> forgotPasswordOtp(String mobile) async {
     return await ApiManager().post('ktuforgopwdotp/', data: {'mobile': mobile});
+  }
+
+  static Future<Response> forgotPassword(
+    String mobile,
+    String otp,
+    String pin,
+  ) async {
+    return await ApiManager().post(
+      'ktuserforgotpwd/',
+      data: {'mobile': mobile, 'otpval': otp, 'newpin': pin},
+    );
   }
 
   static Future<Response> fetchSubscriptionPlans(
@@ -289,7 +300,12 @@ class ApiService {
     );
   }
 
-  static Future<dynamic> fetchStudentAbsentDays(String userId, String session, String tspId, String studentId) async {
+  static Future<dynamic> fetchStudentAbsentDays(
+    String userId,
+    String session,
+    String tspId,
+    String studentId,
+  ) async {
     return await ApiManager().post(
       'ktustdoffdays/',
       data: {
@@ -301,4 +317,35 @@ class ApiService {
     );
   }
 
+static Future<Response> userSubscribeHistory(
+    String userId,
+    String sessionId,
+    String studentId,
+  ) async {
+    return await ApiManager().post(
+      'ktusersubplanhist/',
+      data: {
+        'userid': userId,
+        'sessionid': sessionId,
+        'student_id': studentId,
+      },
+    );
+  }
+
+  static Future<Response> renewUserSubscriptionPlan(
+    String userId,
+    String sessionId,
+    String studentId,
+    String planId,
+  ) async {
+    return await ApiManager().post(
+      'ktusersubplanrenew/',
+      data: {
+        'userid': userId,
+        'sessionid': sessionId,
+        'student_id': studentId,
+        'plan_id': planId,
+      },
+    );
+  }
 }

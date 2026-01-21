@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/api/apimanage.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
+import 'package:logger/logger.dart';
 
 class ChangePinScreen extends StatefulWidget {
   const ChangePinScreen({super.key});
@@ -18,6 +19,14 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
   bool _obscureOldPin = true;
   bool _obscureNewPin = true;
   bool _obscureConfirmPin = true;
+  String? sessionId = "";
+  String? userId = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
 
   @override
   void dispose() {
@@ -27,72 +36,75 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
     super.dispose();
   }
 
+  void _loadUserData() async {
+    sessionId = await SharedPreferenceHelper.getUserSessionId();
+    userId = await SharedPreferenceHelper.getUserNumber();
+  }
+
   void _changePin() async {
     if (_oldPinController.text.isEmpty ||
         _newPinController.text.isEmpty ||
         _confirmPinController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('All fields are required')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All fields are required'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     if (_newPinController.text != _confirmPinController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New PIN and confirm PIN do not match')),
+        const SnackBar(
+          content: Text('New PIN and confirm PIN do not match'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
-    //app session id
-    String? sessionId;
-    await Future<void>.delayed(const Duration(milliseconds: 100)).then((
-      _,
-    ) async {
-      sessionId = await SharedPreferenceHelper.getUserSessionId();
-    });
-    //user id
-    String? userId;
-    await Future<void>.delayed(const Duration(milliseconds: 100)).then((
-      _,
-    ) async {
-      userId = await SharedPreferenceHelper.getUserNumber();
-    });
-
-    ApiManager apiManager = ApiManager();
     Response response = await ApiService.changePin(
       userId!,
       sessionId!,
       _oldPinController.text,
       _newPinController.text,
     );
+    if (response.statusCode == 200) {
+      Logger().i(response.data);
+      if (response.data[0]['result'] == 'ok') {
+        // Clear the text fields
+        _oldPinController.clear();
+        _newPinController.clear();
+        _confirmPinController.clear();
 
-    if (response.statusCode != 200) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to change PIN')));
+        // Hide the keyboard
+        FocusScope.of(context).unfocus();
+
+        // TODO: Implement PIN change logic
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PIN changed successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${response.data[1]['data']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to change PIN'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
-
-    if (response.data['result'] != 'ok') {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to change PIN')));
-      return;
-    }
-
-    // Clear the text fields
-    _oldPinController.clear();
-    _newPinController.clear();
-    _confirmPinController.clear();
-
-    // Hide the keyboard
-    FocusScope.of(context).unfocus();
-
-    // TODO: Implement PIN change logic
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('PIN changed successfully')));
   }
 
   @override
@@ -106,6 +118,8 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
             TextField(
               controller: _oldPinController,
               obscureText: _obscureOldPin,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
               decoration: InputDecoration(
                 labelText: 'Old PIN',
                 suffixIcon: IconButton(
@@ -121,6 +135,8 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
             TextField(
               controller: _newPinController,
               obscureText: _obscureNewPin,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
               decoration: InputDecoration(
                 labelText: 'New PIN',
                 suffixIcon: IconButton(
@@ -136,6 +152,8 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
             TextField(
               controller: _confirmPinController,
               obscureText: _obscureConfirmPin,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
               decoration: InputDecoration(
                 labelText: 'Confirm PIN',
                 suffixIcon: IconButton(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:logger/logger.dart';
@@ -18,13 +19,42 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
     6,
     (_) => TextEditingController(),
   );
+  final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
+
   final List<TextEditingController> _pinControllers = List.generate(
     4,
     (_) => TextEditingController(),
   );
+  final List<FocusNode> _pinFocusNodes = List.generate(4, (_) => FocusNode());
+
   final Logger logger = Logger();
   bool _isLoading = false;
   int _currentStep = 0; // 0: mobile, 1: otp, 2: pin
+
+  @override
+  void initState() {
+    super.initState();
+    for (int i = 0; i < _otpFocusNodes.length; i++) {
+      _otpFocusNodes[i].addListener(() {
+        if (_otpFocusNodes[i].hasFocus && _otpControllers[i].text.isNotEmpty) {
+          _otpControllers[i].selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _otpControllers[i].text.length,
+          );
+        }
+      });
+    }
+    for (int i = 0; i < _pinFocusNodes.length; i++) {
+      _pinFocusNodes[i].addListener(() {
+        if (_pinFocusNodes[i].hasFocus && _pinControllers[i].text.isNotEmpty) {
+          _pinControllers[i].selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _pinControllers[i].text.length,
+          );
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -34,6 +64,12 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
     }
     for (final c in _pinControllers) {
       c.dispose();
+    }
+    for (final f in _otpFocusNodes) {
+      f.dispose();
+    }
+    for (final f in _pinFocusNodes) {
+      f.dispose();
     }
     super.dispose();
   }
@@ -45,6 +81,7 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter a valid 10-digit mobile number'),
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -56,18 +93,27 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
 
     try {
       logger.i('Sending OTP to $mobile for PIN reset');
-      final response = await ApiService.sendOTP(mobile);
+      final response = await ApiService.forgotPasswordOtp(mobile);
       if (response.statusCode == 200) {
         logger.i(response.toString());
         if (response.data[0]['result'] == 'ok') {
           SharedPreferenceHelper.setUserNumber(mobile);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('OTP sent successfully')),
+            const SnackBar(
+              content: Text('OTP sent successfully'),
+              backgroundColor: Colors.green,
+            ),
           );
           setState(() {
             _currentStep = 1; // Move to OTP input
           });
         } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${response.data[0]['data']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
           throw Exception('Error: ${response.data['message']}');
         }
       } else {
@@ -79,7 +125,10 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
     } catch (e, stacktrace) {
       logger.e('Error sending OTP', error: e, stackTrace: stacktrace);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to send OTP. Please try again.')),
+        const SnackBar(
+          content: Text('Failed to send OTP. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) {
@@ -95,7 +144,10 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
 
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 6-digit OTP')),
+        const SnackBar(
+          content: Text('Please enter a valid 6-digit OTP'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -107,31 +159,16 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
     try {
       final mobile = _mobileController.text.trim();
       logger.i('Verifying OTP $otp for $mobile');
-      final response = await ApiService.verifyOTP(mobile, otp);
-
-      // await Future.delayed(const Duration(seconds: 2));
-      if (response.statusCode == 200) {
-        logger.i(response.toString());
-        if (response.data[0]['result'] == 'ok') {
-          // OTP verified successfully
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('OTP verified successfully')),
-          );
-          setState(() {
-            _currentStep = 2; // Move to PIN input
-          });
-        } else {
-          throw Exception('Error: ${response.data[1]['data']}');
-        }
-      } else {
-        throw Exception('Failed to verify OTP: ${response.statusMessage}');
-      }
-      // if (mounted) {
-      // }
+      setState(() {
+        _currentStep = 2; // Move to PIN input
+      });
     } catch (e, stacktrace) {
       logger.e('Error verifying OTP', error: e, stackTrace: stacktrace);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid OTP. Please try again.')),
+        const SnackBar(
+          content: Text('Invalid OTP. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) {
@@ -162,18 +199,51 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
       logger.i('Setting new PIN for $mobile, OTP: $otp, PIN: $pin');
 
       // await Future.delayed(const Duration(seconds: 2));
-      final response = await ApiService.forgotPassword(mobile);
+      final response = await ApiService.forgotPassword(mobile, otp, pin);
 
       if (response.statusCode == 200) {
         logger.i(response.toString());
         if (response.data[0]['result'] == 'ok') {
           // PIN set successfully
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('PIN set successfully')),
+            const SnackBar(
+              content: Text('PIN set successfully'),
+              backgroundColor: Colors.green,
+            ),
           );
           Navigator.pushReplacementNamed(context, AppRoutes.pin);
+        } else if (response.data[1]['data'] == "Invalid OTP") {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${response.data[1]['data']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          for (final controller in _pinControllers) {
+            controller.clear();
+          }
+          setState(() {
+            _currentStep--;
+          });
+          for (final controller in _otpControllers) {
+            controller.clear();
+          }
+          // Set focus to the first field
+          _otpFocusNodes[0].requestFocus();
         } else {
-          throw Exception('Error: ${response.data[1]['data']}');
+          //clear the _controllers.
+          for (final controller in _pinControllers) {
+            controller.clear();
+          }
+          // Set focus to the first field
+          _pinFocusNodes[0].requestFocus();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${response.data[1]['data']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          // throw Exception('Error: ${response.data[1]['data']}');
         }
       } else {
         throw Exception('Failed to set new PIN: ${response.statusMessage}');
@@ -183,7 +253,10 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
     } catch (e, stacktrace) {
       logger.e('Error setting new PIN', error: e, stackTrace: stacktrace);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to set PIN. Please try again.')),
+        const SnackBar(
+          content: Text('Failed to set PIN. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) {
@@ -289,10 +362,12 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 4),
               child: TextField(
                 controller: _otpControllers[index],
+                focusNode: _otpFocusNodes[index],
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 maxLength: 1,
                 style: const TextStyle(fontSize: 24),
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -336,7 +411,7 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   )
                 : const Text(
-                    'Verify OTP',
+                    'Set OTP',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -377,10 +452,12 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 4),
               child: TextField(
                 controller: _pinControllers[index],
+                focusNode: _pinFocusNodes[index],
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 maxLength: 1,
                 style: const TextStyle(fontSize: 24),
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),

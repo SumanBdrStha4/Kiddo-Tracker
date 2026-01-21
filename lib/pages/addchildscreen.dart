@@ -1,14 +1,13 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/api/apimanage.dart';
 import 'package:kiddo_tracker/model/child.dart';
-import 'package:kiddo_tracker/model/route.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
+import 'dart:math';
 
 class AddChildScreen extends StatefulWidget {
   final Map<String, dynamic>? childData;
@@ -80,6 +79,8 @@ class _AddChildScreenState extends State<AddChildScreen> {
   }
 
   void _validateAndSubmit() async {
+    if (!_formKey.currentState!.validate()) return;
+
     //get the form data
     final String? userId = await SharedPreferenceHelper.getUserNumber();
     final String? sessionId = await SharedPreferenceHelper.getUserSessionId();
@@ -92,16 +93,15 @@ class _AddChildScreenState extends State<AddChildScreen> {
     //using database user table
     final users = await db.getUsers();
     final state = users[0]['state'];
+    //generate requestID by DateTime+Random 6 Digits
+    final request_id =
+        '${DateTime.now().millisecondsSinceEpoch}${Random().nextInt(1000000).toString().padLeft(6, '0')}';
+    Logger().d("sdfgdjs $request_id");
     Logger().i(
       'name: $childname, nickname: $nickname, school: $school, class: $className, rollNo: $rollNo, age: $age, state: $state, gender: $gender',
     );
     //validate the form data
-    if (childname.isEmpty ||
-        nickname.isEmpty ||
-        school.isEmpty ||
-        className.isEmpty ||
-        rollNo.isEmpty ||
-        state.isEmpty) {
+    if (state.isEmpty) {
       _showSnackBar('Please fill in all fields', Colors.red);
     } else {
       //print
@@ -113,7 +113,8 @@ class _AddChildScreenState extends State<AddChildScreen> {
 
       final apiEndpoint = widget.isEdit
           ? 'ktuserstudentedit'
-          : 'ktuseraddstudent';
+          // : 'ktuseraddstudent';
+          : 'ktuseraddstudentsrvreq';
 
       final response = await ApiManager().post(
         apiEndpoint,
@@ -128,6 +129,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
           'gender': gender,
           'age': age,
           'state': state,
+          'request_id': request_id,
           if (widget.isEdit) 'student_id': widget.childData?['student_id'],
         },
       );
@@ -158,6 +160,27 @@ class _AddChildScreenState extends State<AddChildScreen> {
           //show child data
           Logger().i(child.toJson());
           Logger().i('Child added successfully');
+          await ApiManager()
+              .post(
+                'ktuservicereqackreceived',
+                data: {
+                  'userid': userId,
+                  'sessionid': sessionId,
+                  'request_id': int.parse(request_id),
+                },
+              )
+              .then((response) async {
+                if (response.statusCode == 200) {
+                  Logger().i('receive response: ${response.data}');
+                  if (response.data[0]['result'] == 'ok') {
+                    if (response.data[1]['data'] == 'ok') {
+                      Logger().i(
+                        '111111111111111: ${response.data[2]['srvreqstatus']}',
+                      );
+                    }
+                  }
+                }
+              });
           // update MQTT subscriptions with new child
           final provider = Provider.of<ChildrenProvider>(
             context,
@@ -196,9 +219,10 @@ class _AddChildScreenState extends State<AddChildScreen> {
           (route) => false,
         );
       } else if (data[0]['result'] == 'error') {
-        if (data[0]['data'])
+        if (data[0]['data']) {
           // clear session and move to pin screen.
           await SharedPreferenceHelper.clearUserSessionId();
+        }
         Navigator.pushNamedAndRemoveUntil(
           context,
           AppRoutes.pin,
@@ -255,7 +279,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                         controller: _nameController,
                         focusNode: _nameFocus,
                         textCapitalization: TextCapitalization.sentences,
-                        keyboardType: TextInputType.text,
+                        keyboardType: TextInputType.name,
                         decoration: InputDecoration(
                           labelText: 'Full Name',
                           prefixIcon: Icon(
@@ -288,7 +312,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                         controller: _nicknameController,
                         focusNode: _nicknameFocus,
                         textCapitalization: TextCapitalization.sentences,
-                        keyboardType: TextInputType.text,
+                        keyboardType: TextInputType.name,
                         decoration: InputDecoration(
                           labelText: 'Nickname',
                           prefixIcon: Icon(
@@ -494,8 +518,16 @@ class _AddChildScreenState extends State<AddChildScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Enter age' : null,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Enter age';
+                          }
+                          final int? age = int.tryParse(value);
+                          if (age == null || age < 1 || age > 18) {
+                            return 'Enter a valid age (1-18)';
+                          }
+                          return null;
+                        },
                       ),
                       // SizedBox(height: 16),
                       // TextFormField(

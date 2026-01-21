@@ -331,20 +331,24 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                           children: [
                             Text(
                               '${widget.routes.first.routeName} starts at ${widget.routes.first.stopArrivalTime}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyLarge?.color,
                               ),
                             ),
                             const SizedBox(height: 4),
                             //display stop location arrival time
                             Text(
                               'Stop Arrival Time: $startTime',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w400,
-                                color: Colors.grey,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                               ),
                             ),
                             // const SizedBox(height: 4),
@@ -522,7 +526,7 @@ class _RouteCardWidgetState extends State<RouteCardWidget> {
                     String routeId = widget.routes.first.routeId;
                     List<String> tspId = widget.tspId;
                     Logger().d(
-                      'Holiday icon tapped for oprId: $oprId, routeId: $routeId',
+                      'Holiday icon tapped for oprId: $oprId, routeId: $routeId, tspId: $tspId',
                     );
                     //navigate to RequestLeaveScreen and pass oprId and routeId
                     Navigator.push(
