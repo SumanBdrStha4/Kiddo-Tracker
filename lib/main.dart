@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kiddo_tracker/routes/routes.dart';
+import 'package:kiddo_tracker/pages/mainscreen.dart';
 import 'package:kiddo_tracker/services/children_provider.dart';
 import 'package:kiddo_tracker/services/theme_provider.dart';
 import 'package:kiddo_tracker/services/notification_service.dart';
@@ -178,19 +179,22 @@ class _MainAppState extends State<MainApp> {
                 );
               } else if (snapshot.hasData) {
                 final state = snapshot.data!;
-                String initialRoute;
                 if (state == 'main') {
-                  print('User is logged in and session active');
-                  initialRoute = AppRoutes.main;
+                  print(
+                    'User is logged in and session active - using MainScreen as home',
+                  );
+                  return const MainScreen();
                 } else if (state == 'pin') {
-                  initialRoute = AppRoutes.pin;
+                  return Navigator(
+                    initialRoute: AppRoutes.pin,
+                    onGenerateRoute: AppRoutes.generateRoute,
+                  );
                 } else {
-                  initialRoute = AppRoutes.login;
+                  return Navigator(
+                    initialRoute: AppRoutes.login,
+                    onGenerateRoute: AppRoutes.generateRoute,
+                  );
                 }
-                return Navigator(
-                  initialRoute: initialRoute,
-                  onGenerateRoute: AppRoutes.generateRoute,
-                );
               } else {
                 return Navigator(
                   initialRoute: AppRoutes.login,

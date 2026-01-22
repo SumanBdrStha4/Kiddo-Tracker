@@ -120,11 +120,11 @@ class _SettingScreenState extends State<SettingScreen> {
                 Spacer(),
                 IconButton(
                   icon: Icon(
-                    Icons.sync,
+                    Icons.update,
                     color: Theme.of(context).textTheme.bodyLarge?.color,
                     size: 35,
                   ),
-                  onPressed: () => dataSync(),
+                  onPressed: () => dataUpdate(),
                 ),
               ],
             ),
@@ -485,23 +485,27 @@ class _SettingScreenState extends State<SettingScreen> {
   }
 
   void deleteChild(int idx) async {
-    final studentId = children[idx]['student_id'];
+    final String studentId = children[idx]['student_id'];
     final provider = Provider.of<ChildrenProvider>(context, listen: false);
+    final sessionId = await SharedPreferenceHelper.getUserSessionId();
     final oprIdList = await sqfliteHelper.getAllRoutesByStudentId(studentId);
     final logOprIdList = oprIdList.isNotEmpty
         ? oprIdList.map((e) => '"$e"').toList().toString()
         : [];
+    //example of logOprIdList: ["oprid1", "oprid2"] or []
+    //get the datatype of logOprIdList
+    Logger().d('logOprIdList type: ${logOprIdList.runtimeType}');
     Logger().i(
-      'Deleting child with ID: $studentId, user ID: $mobileNumber, session ID: $session, oprIdList: $logOprIdList',
+      'Deleting child with ID: $studentId, user ID: $mobileNumber, session ID: $sessionId, oprIdList: $logOprIdList',
     );
     try {
       var response = await ApiManager().post(
         'ktuserstddelete',
         data: {
-          'userid': mobileNumber,
-          'sessionid': session,
-          'oprids': logOprIdList,
           'student_id': studentId,
+          'oprids': logOprIdList,
+          'sessionid': sessionId,
+          'userid': mobileNumber,
         },
       );
       print('Delete child response: ${response.data}');
@@ -550,8 +554,8 @@ class _SettingScreenState extends State<SettingScreen> {
     }
   }
 
-  void dataSync() {
-    //run all the api and update the database.
+  void dataUpdate() {
+    //
   }
 
   void requestLeave(Map<String, dynamic> child) {

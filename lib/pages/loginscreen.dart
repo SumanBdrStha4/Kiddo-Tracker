@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Container(
@@ -203,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushNamed(context, AppRoutes.otp, arguments: mobileNumber);
       return;
     }
-    
+
     ApiService.sendOTP(mobileNumber)
         .then((response) {
           setState(() {

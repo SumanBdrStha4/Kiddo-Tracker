@@ -31,12 +31,19 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: _selectedIndex == 0,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
+    return WillPopScope(
+      onWillPop: () async {
+        int currentPage = _pageController.page?.round() ?? 0;
+        print(
+          'Back button pressed. Current page: $currentPage, _selectedIndex: $_selectedIndex',
+        );
+        if (currentPage != 0) {
+          print('Navigating to home page (page 0)');
           _pageController.jumpToPage(0);
+          return false;
         }
+        print('On home page, allowing app exit');
+        return true;
       },
       child: Scaffold(
         appBar: AppBar(

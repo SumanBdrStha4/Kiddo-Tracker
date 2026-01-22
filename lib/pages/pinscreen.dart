@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kiddo_tracker/api/api_service.dart';
 import 'package:kiddo_tracker/widget/shareperference.dart';
 import 'package:kiddo_tracker/widget/sqflitehelper.dart';
@@ -24,20 +25,15 @@ class _PINScreenState extends State<PINScreen> {
   final SqfliteHelper _sqfliteHelper = SqfliteHelper();
 
   bool _isLoading = false;
+  int _currentFocusIndex = 0;
 
   @override
   void initState() {
-    super.initState();
     for (int i = 0; i < _focusNodes.length; i++) {
-      _focusNodes[i].addListener(() {
-        if (_focusNodes[i].hasFocus && _controllers[i].text.isNotEmpty) {
-          _controllers[i].selection = TextSelection(
-            baseOffset: 0,
-            extentOffset: _controllers[i].text.length,
-          );
-        }
-      });
+      _focusNodes[i].canRequestFocus = i == 0;
     }
+    _focusNodes[0].requestFocus();
+    super.initState();
   }
 
   @override
@@ -56,9 +52,9 @@ class _PINScreenState extends State<PINScreen> {
 
     if (pin.length != 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid 4-digit PIN'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Please enter a valid 4-digit PIN'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
       return;
@@ -138,7 +134,11 @@ class _PINScreenState extends State<PINScreen> {
         for (final controller in _controllers) {
           controller.clear();
         }
-        // Set focus to the first field
+        // Reset focus to the first field
+        for (int i = 0; i < _focusNodes.length; i++) {
+          _focusNodes[i].canRequestFocus = i == 0;
+        }
+        _currentFocusIndex = 0;
         _focusNodes[0].requestFocus();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(data), backgroundColor: Colors.red),
@@ -167,7 +167,7 @@ class _PINScreenState extends State<PINScreen> {
     final node = FocusScope.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Container(
@@ -179,60 +179,76 @@ class _PINScreenState extends State<PINScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   'Enter PIN',
                   style: TextStyle(
-                    color: Color(0xFF755DC1),
+                    color: Theme.of(context).colorScheme.primary,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   'Please enter your 4-digit PIN',
-                  style: TextStyle(color: Color(0xFF837E93), fontSize: 16),
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    fontSize: 16,
+                  ),
                 ),
                 const SizedBox(height: 40),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (index) {
-                    return Container(
-                      width: 48,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      child: TextField(
-                        controller: _controllers[index],
-                        focusNode: _focusNodes[index],
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        maxLength: 1,
-                        style: const TextStyle(fontSize: 24),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF837E93),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF9F7BFF),
-                              width: 2,
-                            ),
-                          ),
-                          counterText: '',
-                        ),
-                        onChanged: (value) {
-                          if (value.isNotEmpty && index < 3) {
-                            node.nextFocus();
-                          } else if (value.isEmpty && index > 0) {
-                            node.previousFocus();
-                          }
-                        },
-                      ),
-                    );
-                  }),
+                  children: List.generate(4, _pinField),
                 ),
+                // Row(
+                //   mainAxisAlignment: MainAxisAlignment.center,
+                //   children: List.generate(4, (index) {
+                //     return Container(
+                //       width: 48,
+                //       margin: const EdgeInsets.symmetric(horizontal: 4),
+                //       child: AbsorbPointer(
+                //         absorbing: index != _currentFocusIndex,
+                //         child: TextField(
+                //           controller: _controllers[index],
+                //           focusNode: _focusNodes[index],
+                //           keyboardType: TextInputType.number,
+                //           textAlign: TextAlign.center,
+                //           maxLength: 1,
+                //           obscureText: true,
+                //           enableInteractiveSelection: false,
+                //           style: const TextStyle(fontSize: 24),
+                //           decoration: InputDecoration(
+                //             border: OutlineInputBorder(
+                //               borderRadius: BorderRadius.circular(12),
+                //               borderSide: const BorderSide(
+                //                 color: Color(0xFF837E93),
+                //               ),
+                //             ),
+                //             focusedBorder: OutlineInputBorder(
+                //               borderRadius: BorderRadius.circular(12),
+                //               borderSide: const BorderSide(
+                //                 color: Color(0xFF9F7BFF),
+                //                 width: 2,
+                //               ),
+                //             ),
+                //             counterText: '',
+                //           ),
+                //           onChanged: (value) {
+                //             if (value.isNotEmpty && index < 3) {
+                //               _currentFocusIndex = index + 1;
+                //               _focusNodes[_currentFocusIndex].canRequestFocus =
+                //                   true;
+                //               _focusNodes[_currentFocusIndex].requestFocus();
+                //             } else if (value.isEmpty && index > 0) {
+                //               _currentFocusIndex = index - 1;
+                //               _focusNodes[_currentFocusIndex].requestFocus();
+                //             }
+                //           },
+                //         ),
+                //       ),
+                //     );
+                //   }),
+                // ),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
@@ -240,22 +256,22 @@ class _PINScreenState extends State<PINScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _signIn,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF9F7BFF),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       elevation: 3,
                     ),
                     child: _isLoading
-                        ? const CircularProgressIndicator(
+                        ? CircularProgressIndicator(
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                              Theme.of(context).colorScheme.onPrimary,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             'Verify PIN',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
@@ -267,10 +283,10 @@ class _PINScreenState extends State<PINScreen> {
                   onPressed: () {
                     Navigator.pushNamed(context, AppRoutes.forgetPin);
                   },
-                  child: const Text(
+                  child: Text(
                     'Forgot PIN?',
                     style: TextStyle(
-                      color: Color(0xFF9F7BFF),
+                      color: Theme.of(context).colorScheme.primary,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -329,4 +345,57 @@ class _PINScreenState extends State<PINScreen> {
   //     Logger().e('Error fetching children: $e');
   //   }
   // }
+
+  Widget _pinField(int index) {
+    return Container(
+      width: 48,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      child: AbsorbPointer(
+        absorbing: index != _currentFocusIndex, // 🔒 block clicks
+        child: RawKeyboardListener(
+          focusNode: FocusNode(), // required
+          onKey: (event) {
+            if (event is RawKeyDownEvent &&
+                event.logicalKey == LogicalKeyboardKey.backspace) {
+              if (_controllers[index].text.isEmpty && index > 0) {
+                setState(() {
+                  _currentFocusIndex--;
+                });
+                _controllers[_currentFocusIndex].clear();
+                _focusNodes[_currentFocusIndex].requestFocus();
+              }
+            }
+          },
+          child: TextField(
+            controller: _controllers[index],
+            focusNode: _focusNodes[index],
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            maxLength: 1,
+            obscureText: false,
+            showCursor: index == _currentFocusIndex,
+            enableInteractiveSelection: false,
+            decoration: InputDecoration(
+              counterText: '',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onChanged: (value) {
+              if (value.isNotEmpty) {
+                if (index < 3) {
+                  setState(() {
+                    _currentFocusIndex++;
+                  });
+                  _focusNodes[_currentFocusIndex].requestFocus();
+                } else {
+                  _focusNodes[index].unfocus();
+                }
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -30,30 +30,19 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
   final Logger logger = Logger();
   bool _isLoading = false;
   int _currentStep = 0; // 0: mobile, 1: otp, 2: pin
+  int _currentFocusIndex = 0;
 
   @override
   void initState() {
     super.initState();
     for (int i = 0; i < _otpFocusNodes.length; i++) {
-      _otpFocusNodes[i].addListener(() {
-        if (_otpFocusNodes[i].hasFocus && _otpControllers[i].text.isNotEmpty) {
-          _otpControllers[i].selection = TextSelection(
-            baseOffset: 0,
-            extentOffset: _otpControllers[i].text.length,
-          );
-        }
-      });
+      _otpFocusNodes[i].canRequestFocus = i == 0;
     }
+    _otpFocusNodes[0].requestFocus();
     for (int i = 0; i < _pinFocusNodes.length; i++) {
-      _pinFocusNodes[i].addListener(() {
-        if (_pinFocusNodes[i].hasFocus && _pinControllers[i].text.isNotEmpty) {
-          _pinControllers[i].selection = TextSelection(
-            baseOffset: 0,
-            extentOffset: _pinControllers[i].text.length,
-          );
-        }
-      });
+      _pinFocusNodes[i].canRequestFocus = i == 0;
     }
+    _pinFocusNodes[0].requestFocus();
   }
 
   @override
@@ -160,6 +149,11 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
       final mobile = _mobileController.text.trim();
       logger.i('Verifying OTP $otp for $mobile');
       setState(() {
+        _otpControllers.clear();
+        for (final controller in _otpControllers) {
+          controller.clear();
+        }
+        _currentFocusIndex = 0;
         _currentStep = 2; // Move to PIN input
       });
     } catch (e, stacktrace) {
@@ -225,6 +219,7 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
           setState(() {
             _currentStep--;
           });
+          _otpControllers.clear();
           for (final controller in _otpControllers) {
             controller.clear();
           }
@@ -270,18 +265,21 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
   Widget _buildMobileInput() {
     return Column(
       children: [
-        const Text(
+        Text(
           'Forgot PIN',
           style: TextStyle(
-            color: Color(0xFF755DC1),
+            color: Theme.of(context).textTheme.bodyLarge?.color,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'Enter your registered mobile number to reset PIN',
-          style: TextStyle(color: Color(0xFF837E93), fontSize: 16),
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+            fontSize: 16,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 40),
@@ -294,13 +292,21 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
             hintText: 'Enter 10-digit mobile number',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF837E93)),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF9F7BFF), width: 2),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 2,
+              ),
             ),
-            prefixIcon: const Icon(Icons.phone, color: Color(0xFF837E93)),
+            prefixIcon: Icon(
+              Icons.phone,
+              color: Theme.of(context).colorScheme.outline,
+            ),
           ),
         ),
         const SizedBox(height: 32),
@@ -310,20 +316,22 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
           child: ElevatedButton(
             onPressed: _isLoading ? null : _sendOTP,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9F7BFF),
+              backgroundColor: Theme.of(context).colorScheme.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               elevation: 3,
             ),
             child: _isLoading
-                ? const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ? CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.onPrimary,
+                    ),
                   )
-                : const Text(
+                : Text(
                     'Send OTP',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -339,18 +347,21 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
 
     return Column(
       children: [
-        const Text(
+        Text(
           'Enter OTP',
           style: TextStyle(
-            color: Color(0xFF755DC1),
+            color: Theme.of(context).textTheme.bodyLarge?.color,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'Please enter the OTP sent to your phone',
-          style: TextStyle(color: Color(0xFF837E93), fontSize: 16),
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+            fontSize: 16,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 40),
@@ -360,35 +371,62 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
             return Container(
               width: 48,
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              child: TextField(
-                controller: _otpControllers[index],
-                focusNode: _otpFocusNodes[index],
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                maxLength: 1,
-                style: const TextStyle(fontSize: 24),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF837E93)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF9F7BFF),
-                      width: 2,
+              child: AbsorbPointer(
+                absorbing: index != _currentFocusIndex, // 🔒 block clicks
+                child: RawKeyboardListener(
+                  focusNode: FocusNode(), // required
+                  onKey: (event) {
+                    if (event is RawKeyDownEvent &&
+                        event.logicalKey == LogicalKeyboardKey.backspace) {
+                      if (_otpControllers[index].text.isEmpty && index > 0) {
+                        setState(() {
+                          _currentFocusIndex--;
+                        });
+                        _otpControllers[_currentFocusIndex].clear();
+                        _otpFocusNodes[_currentFocusIndex].requestFocus();
+                      }
+                    }
+                  },
+                  child: TextField(
+                    controller: _otpControllers[index],
+                    focusNode: _otpFocusNodes[index],
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    maxLength: 1,
+                    obscureText: false,
+                    showCursor: index == _currentFocusIndex,
+                    enableInteractiveSelection: false,
+                    style: const TextStyle(fontSize: 24),
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      counterText: '',
                     ),
+                    onChanged: (value) {
+                      if (value.isNotEmpty) {
+                        if (index < 5) {
+                          setState(() {
+                            _currentFocusIndex++;
+                          });
+                          _otpFocusNodes[_currentFocusIndex].requestFocus();
+                        } else {
+                          _otpFocusNodes[index].unfocus();
+                        }
+                      }
+                    },
                   ),
-                  counterText: '',
                 ),
-                onChanged: (value) {
-                  if (value.isNotEmpty && index < 5) {
-                    node.nextFocus();
-                  } else if (value.isEmpty && index > 0) {
-                    node.previousFocus();
-                  }
-                },
               ),
             );
           }),
@@ -400,20 +438,22 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
           child: ElevatedButton(
             onPressed: _isLoading ? null : _verifyOTP,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9F7BFF),
+              backgroundColor: Theme.of(context).colorScheme.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               elevation: 3,
             ),
             child: _isLoading
-                ? const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ? CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.onPrimary,
+                    ),
                   )
-                : const Text(
+                : Text(
                     'Set OTP',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -429,18 +469,21 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
 
     return Column(
       children: [
-        const Text(
+        Text(
           'Set New PIN',
           style: TextStyle(
-            color: Color(0xFF755DC1),
+            color: Theme.of(context).textTheme.bodyLarge?.color,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'Please enter your new 4-digit PIN',
-          style: TextStyle(color: Color(0xFF837E93), fontSize: 16),
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+            fontSize: 16,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 40),
@@ -450,35 +493,60 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
             return Container(
               width: 48,
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              child: TextField(
-                controller: _pinControllers[index],
-                focusNode: _pinFocusNodes[index],
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                maxLength: 1,
-                style: const TextStyle(fontSize: 24),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF837E93)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF9F7BFF),
-                      width: 2,
+              child: AbsorbPointer(
+                absorbing: index != _currentFocusIndex, // 🔒 block clicks
+                child: RawKeyboardListener(
+                  focusNode: FocusNode(), // required
+                  onKey: (event) {
+                    if (event is RawKeyDownEvent &&
+                        event.logicalKey == LogicalKeyboardKey.backspace) {
+                      if (_pinControllers[index].text.isEmpty && index > 0) {
+                        setState(() {
+                          _currentFocusIndex--;
+                        });
+                        _pinControllers[_currentFocusIndex].clear();
+                        _pinFocusNodes[_currentFocusIndex].requestFocus();
+                      }
+                    }
+                  },
+                  child: TextField(
+                    controller: _pinControllers[index],
+                    focusNode: _pinFocusNodes[index],
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    maxLength: 1,
+                    style: const TextStyle(fontSize: 24),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      counterText: '',
                     ),
+                    onChanged: (value) {
+                      if (value.isNotEmpty) {
+                        if (index < 3) {
+                          setState(() {
+                            _currentFocusIndex++;
+                          });
+                          _pinFocusNodes[_currentFocusIndex].requestFocus();
+                        } else {
+                          _pinFocusNodes[index].unfocus();
+                        }
+                      }
+                    },
                   ),
-                  counterText: '',
                 ),
-                onChanged: (value) {
-                  if (value.isNotEmpty && index < 3) {
-                    node.nextFocus();
-                  } else if (value.isEmpty && index > 0) {
-                    node.previousFocus();
-                  }
-                },
               ),
             );
           }),
@@ -490,20 +558,22 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
           child: ElevatedButton(
             onPressed: _isLoading ? null : _setNewPIN,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9F7BFF),
+              backgroundColor: Theme.of(context).colorScheme.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               elevation: 3,
             ),
             child: _isLoading
-                ? const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ? CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.onPrimary,
+                    ),
                   )
-                : const Text(
+                : Text(
                     'Set PIN',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -529,7 +599,7 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Container(
@@ -546,14 +616,27 @@ class _ForgetPINScreenState extends State<ForgetPINScreen> {
                 if (_currentStep > 0)
                   TextButton(
                     onPressed: () {
+                      if (_currentStep == 2) {
+                        for (final controller in _pinControllers) {
+                          controller.clear();
+                        }
+                        // Set focus to the first field
+                        _pinFocusNodes[0].requestFocus();
+                      } else if (_currentStep == 1) {
+                        for (final controller in _otpControllers) {
+                          controller.clear();
+                        }
+                        // Set focus to the first field
+                        _otpFocusNodes[0].requestFocus();
+                      }
                       setState(() {
                         _currentStep--;
                       });
                     },
-                    child: const Text(
+                    child: Text(
                       'Back',
                       style: TextStyle(
-                        color: Color(0xFF9F7BFF),
+                        color: Theme.of(context).colorScheme.primary,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),

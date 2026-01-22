@@ -345,7 +345,7 @@ class SqfliteHelper {
     );
   }
 
-  //get all routes in String array oprid base on student_id from child table
+  //oprid base on student_id from child table
   Future<List<String>> getAllRoutesByStudentId(String studentId) async {
     //if no data then it should be [] and if it has then ["", ""]
     //take the oprid from child's route_info
